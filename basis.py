@@ -23,3 +23,19 @@ class System:
 
     def animate(self, entity):
         pass
+
+    def step(self):
+        print("step")
+
+    def operate(self):
+        while True:
+            self.step()
+
+
+def main():
+    system = System()
+    system.operate()
+
+
+if __name__ == "__main__":
+    main()

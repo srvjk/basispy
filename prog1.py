@@ -20,3 +20,5 @@ agent = cells.Agent()
 if agent:
     system.animate(agent)
 
+# запускаем систему
+system.operate()
