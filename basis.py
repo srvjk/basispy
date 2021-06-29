@@ -1,10 +1,19 @@
 import importlib
 import importlib.util
 import inspect
+import logging
 
 
 class Entity:
     system = None
+
+    def __init__(self):
+        if self.system is not None:
+            ok = self.system.add_entity(self)
+            if not ok:
+                logging.warning("failed to add entity to System")
+        else:
+            logging.warning("creating Entity before system_connect")
 
     @classmethod
     def system_connect(cls, system):
@@ -13,6 +22,7 @@ class Entity:
 
 class System:
     def __init__(self):
+        self.entities = set()         # all entities
         self.active_entities = set()  # active entities, i.e. those for which step() should be called
 
     def load(self, module_name, dir_path='.'):
@@ -37,8 +47,17 @@ class System:
 
         return module
 
-    def create(self, entity_class_name):
-        pass
+    def add_entity(self, entity) -> bool:
+        if not isinstance(entity, Entity):
+            return False
+        if entity in self.entities:
+            return True  # ok, already added
+        self.entities.add(entity)
+        return True
+
+    def print_entities(self):
+        for ent in self.entities:
+            print(ent)
 
     def activate(self, entity):
         if not isinstance(entity, Entity):

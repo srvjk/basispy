@@ -22,5 +22,7 @@ if viewer:
 if agent:
     system.activate(agent)
 
+system.print_entities()
+
 # запускаем систему
 system.operate()
