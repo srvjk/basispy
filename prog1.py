@@ -11,7 +11,7 @@ if not cells:
 
 # создаем нужные сущности
 board = cells.Board()
-viewer = cells.Viewer()
+viewer = cells.Viewer(board)
 agent = cells.Agent()
 
 #system.printEntities()
