@@ -7,9 +7,11 @@ import random
 class Board(basis.Entity):
     def __init__(self):
         super().__init__()
-        self.size = self.width, self.height = 100, 100
+        self.size = self.width, self.height = 10, 10
         self.cell_size = 3
         self.visual_field = pygame.Surface(self.size_in_pixels())
+        self.back_color = (10, 10, 10)
+        self.point_color = (100, 100, 100)
 
     def size_in_cells(self):
         return self.size
@@ -18,14 +20,22 @@ class Board(basis.Entity):
         return self.width * self.cell_size, self.height * self.cell_size
 
     def draw(self):
-        self.visual_field.fill((100, 100, 100))
+        self.visual_field.fill(self.back_color)
+        y = self.cell_size / 2.0
+        for row in range(self.height):
+            x = self.cell_size / 2.0
+            for col in range(self.width):
+                point_rect = pygame.Rect(x, y, 1, 1)
+                pygame.draw.rect(self.visual_field, self.point_color, point_rect)
+                x += self.cell_size
+            y += self.cell_size
 
 
 class Viewer(basis.Entity):
-    def __init__(self, board):
+    def __init__(self):
         super().__init__()
         pygame.init()
-        self.board = board
+        self.board = None
         size = width, height = 640, 480
         self.screen = pygame.display.set_mode(size)
 
@@ -56,6 +66,7 @@ class Viewer(basis.Entity):
 class Agent(basis.Entity):
     def __init__(self):
         super().__init__()
+        self.board = None
         self._position = [320, 240]
 
     @property

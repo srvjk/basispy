@@ -11,7 +11,7 @@ class TestEntity1(basis.Entity):
 def test1() -> bool:
     TestEntity1.system_connect(system)
 
-    test_entity_one = TestEntity1("InitialName")
+    test_entity_one = system.new(TestEntity1, "InitialName")
     if system.find_entity_by_name("InitialName") != test_entity_one:
         return False
 

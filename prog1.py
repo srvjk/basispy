@@ -10,9 +10,9 @@ if not cells:
     sys.exit('could not load module "cells"')
 
 # создаем нужные сущности
-board = cells.Board()
-viewer = cells.Viewer(board)
-agent = cells.Agent()
+board = system.new(cells.Board)
+viewer = system.new(cells.Viewer)
+agent = board.new(cells.Agent)
 
 #system.printEntities()
 
