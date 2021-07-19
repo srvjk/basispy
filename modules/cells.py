@@ -7,11 +7,10 @@ import random
 class Board(basis.Entity):
     def __init__(self):
         super().__init__()
-        self.size = self.width, self.height = 10, 10
+        self.size = self.width, self.height = 100, 100
         self.cell_size = 3
         self.visual_field = pygame.Surface(self.size_in_pixels())
         self.back_color = (10, 10, 10)
-        self.point_color = (100, 100, 100)
 
     def size_in_cells(self):
         return self.size
@@ -21,14 +20,17 @@ class Board(basis.Entity):
 
     def draw(self):
         self.visual_field.fill(self.back_color)
-        y = self.cell_size / 2.0
-        for row in range(self.height):
-            x = self.cell_size / 2.0
-            for col in range(self.width):
-                point_rect = pygame.Rect(x, y, 1, 1)
-                pygame.draw.rect(self.visual_field, self.point_color, point_rect)
-                x += self.cell_size
-            y += self.cell_size
+
+        for ent in self.entities:
+            if isinstance(ent, Agent):
+                try:
+                    p = ent.position
+                    agent_pos = ent.position
+                    agent_rect = pygame.Rect(agent_pos[0] * self.cell_size, agent_pos[1] * self.cell_size,
+                                             self.cell_size, self.cell_size)
+                    pygame.draw.rect(self.visual_field, (100, 0, 0), agent_rect)
+                except AttributeError:
+                    pass
 
 
 class Viewer(basis.Entity):
@@ -37,7 +39,11 @@ class Viewer(basis.Entity):
         pygame.init()
         self.board = None
         size = width, height = 640, 480
+        self.point_color = (100, 100, 100)
         self.screen = pygame.display.set_mode(size)
+
+    def set_board(self, board):
+        self.board = board
 
     def step(self):
         for event in pygame.event.get():
@@ -52,13 +58,14 @@ class Viewer(basis.Entity):
         self.board.draw()
         self.screen.blit(self.board.visual_field, (0, 0))
 
-        for ent in self.system.entities:
-            if isinstance(ent, Agent):
-                try:
-                    p = ent.position
-                    pygame.draw.circle(self.screen, (100, 0, 0), p, 10)
-                except AttributeError:
-                    pass
+        y = self.board.cell_size / 2.0
+        for row in range(self.board.height):
+            x = self.board.cell_size / 2.0
+            for col in range(self.board.width):
+                point_rect = pygame.Rect(x, y, 1, 1)
+                pygame.draw.rect(self.screen, self.point_color, point_rect)
+                x += self.board.cell_size
+            y += self.board.cell_size
 
         pygame.display.flip()
 
@@ -67,12 +74,24 @@ class Agent(basis.Entity):
     def __init__(self):
         super().__init__()
         self.board = None
-        self._position = [320, 240]
+        self._position = [0, 0]
+
+    def set_board(self, board):
+        self.board = board
+        self.board.add_entity(self)
 
     @property
     def position(self):
         return self._position
 
     def step(self):
+        if not self.board:
+            return
+
         self.position[0] += random.choice([-1, 0, 1])
+        self.position[0] = max(0, self.position[0])
+        self.position[0] = min(self.position[0], self.board.size[0] - 1)
         self.position[1] += random.choice([-1, 0, 1])
+        self.position[1] = max(0, self.position[1])
+        self.position[1] = min(self.position[1], self.board.size[1] - 1)
+

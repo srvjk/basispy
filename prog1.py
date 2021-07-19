@@ -11,8 +11,12 @@ if not cells:
 
 # создаем нужные сущности
 board = system.new(cells.Board)
+
 viewer = system.new(cells.Viewer)
+viewer.set_board(board)
+
 agent = board.new(cells.Agent)
+agent.set_board(board)
 
 #system.printEntities()
 

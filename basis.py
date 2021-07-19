@@ -23,7 +23,7 @@ class Entity:
         cls.system = system
 
     def new(self, class_name, entity_name=""):
-        item = class_name(entity_name)
+        item = class_name()
         if not item:
             self.system.report_error("'{}' is not a class name".format(class_name))
             return None
