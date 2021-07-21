@@ -1,4 +1,5 @@
 import basis
+import basis_ui
 import pygame
 import sys
 import random
@@ -41,6 +42,8 @@ class Viewer(basis.Entity):
         size = width, height = 640, 480
         self.point_color = (100, 100, 100)
         self.screen = pygame.display.set_mode(size)
+        self.toggle_grid_button = basis_ui.Button(self.screen, pygame.Rect(400, 10, 100, 20), "Grid")
+        self.show_grid = True
 
     def set_board(self, board):
         self.board = board
@@ -52,20 +55,26 @@ class Viewer(basis.Entity):
 
         self.screen.fill((0, 0, 0))
 
+        self.toggle_grid_button.draw()
+        self.toggle_grid_button.step()
+        if self.toggle_grid_button.is_mouse_down():
+            self.show_grid = not self.show_grid
+
         if not self.board:
             return
 
         self.board.draw()
         self.screen.blit(self.board.visual_field, (0, 0))
 
-        y = self.board.cell_size / 2.0
-        for row in range(self.board.height):
-            x = self.board.cell_size / 2.0
-            for col in range(self.board.width):
-                point_rect = pygame.Rect(x, y, 1, 1)
-                pygame.draw.rect(self.screen, self.point_color, point_rect)
-                x += self.board.cell_size
-            y += self.board.cell_size
+        if self.show_grid:
+            y = self.board.cell_size / 2.0
+            for row in range(self.board.height):
+                x = self.board.cell_size / 2.0
+                for col in range(self.board.width):
+                    point_rect = pygame.Rect(x, y, 1, 1)
+                    pygame.draw.rect(self.screen, self.point_color, point_rect)
+                    x += self.board.cell_size
+                y += self.board.cell_size
 
         pygame.display.flip()
 
