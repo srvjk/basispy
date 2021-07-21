@@ -41,8 +41,9 @@ class Viewer(basis.Entity):
         self.board = None
         size = width, height = 640, 480
         self.point_color = (100, 100, 100)
-        self.screen = pygame.display.set_mode(size)
-        self.toggle_grid_button = basis_ui.Button(self.screen, pygame.Rect(400, 10, 100, 20), "Grid")
+        self.screen = pygame.display.set_mode(size, pygame.RESIZABLE)
+        self.main_tool_panel = basis_ui.Panel(self.screen, pygame.Rect(300, 10, 200, 200))
+        self.toggle_grid_button = basis_ui.Button(self.main_tool_panel, pygame.Rect(10, 10, 100, 20), "Grid")
         self.show_grid = True
 
     def set_board(self, board):
@@ -52,9 +53,19 @@ class Viewer(basis.Entity):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
+            elif event.type == pygame.VIDEORESIZE:
+                print("new size {}x{}".format(event.w, event.h))
+                self.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
 
         self.screen.fill((0, 0, 0))
 
+        actual_size = pygame.display.get_window_size()
+        min_size = self.min_window_size()
+        if actual_size[0] < min_size[0] or actual_size[1] < min_size[1]:
+            pygame.display.flip()
+            return
+
+        self.main_tool_panel.draw()
         self.toggle_grid_button.draw()
         self.toggle_grid_button.step()
         if self.toggle_grid_button.is_mouse_down():
@@ -77,6 +88,10 @@ class Viewer(basis.Entity):
                 y += self.board.cell_size
 
         pygame.display.flip()
+
+    def min_window_size(self):
+        size = self.main_tool_panel.size()
+        return size
 
 
 class Agent(basis.Entity):
