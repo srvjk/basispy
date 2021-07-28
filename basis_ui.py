@@ -1,5 +1,5 @@
 import pygame
-
+from enum import Enum
 
 def darken(color):
     return tuple(0.8*x for x in color)
@@ -21,6 +21,26 @@ class Panel:
     def size(self):
         return self.rect.size
 
+    def width(self):
+        return self.rect.width
+
+    def height(self):
+        return self.rect.height
+
+    def set_pos(self, pos):
+        self.rect.topleft = pos
+
+
+class CaptionPolicy(Enum):
+    Clip = 1,
+    Fit = 2
+
+
+class HorAlignment(Enum):
+    Center = 1,
+    Left = 2,
+    Right = 3
+
 
 class Button:
     def __init__(self, panel, rect, caption):
@@ -31,11 +51,15 @@ class Button:
         self.base_text_color = (200, 200, 200)
         self.mouse_down_color = darken(self.base_color)
         self.mouse_down_text_color = darken(self.base_text_color)
-        self.font = pygame.font.SysFont('Courier New', 12)
+        self.preferred_text_size = 12
+        self.font = pygame.font.SysFont('Courier New', self.preferred_text_size)
         self.prev_pressed = False
         self.now_pressed = False
         self.mouse_down = False
         self.mouse_up = False
+        self.caption_policy = CaptionPolicy.Clip
+        self.caption_margins = (0, 0)
+        self.set_size(self.rect.size)
 
     def step(self):
         if not self.panel:
@@ -85,7 +109,16 @@ class Button:
         pygame.draw.rect(self.panel.screen, color, rect)
 
         text_surface = self.font.render(self.caption, False, text_color)
-        self.panel.screen.blit(text_surface, rect.topleft)
+        self.panel.screen.blit(text_surface, (rect.left + self.caption_margins[0], rect.top + self.caption_margins[1]))
 
     def size(self):
         return self.rect.size
+
+    def set_size(self, new_size):
+        self.rect.size = new_size
+        if self.caption_policy == CaptionPolicy.Clip:
+            text_size = self.font.size(self.caption)
+            hor_margin = (self.rect.width - text_size[0]) / 2.0
+            ver_margin = (self.rect.height - text_size[1]) / 2.0
+            self.caption_margins = (hor_margin, ver_margin)
+
