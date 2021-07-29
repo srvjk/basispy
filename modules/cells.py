@@ -1,8 +1,63 @@
 import basis
-import pygame
 import sys
 import random
+import pygame
 import pygame_gui
+from pygame_gui.ui_manager import UIManager
+from pygame_gui.elements.ui_window import UIWindow
+
+
+class Link:
+    def __init__(self):
+        self.weight = 0
+        self.src_neuron = None
+        self.dst_neuron = None
+
+
+class Neuron:
+    def __init__(self):
+        self.out_links = list()
+        self.pos = [0, 0]
+
+
+class Layer:
+    def __init__(self, name):
+        self.name = name
+        self.neurons = list()
+
+    def create(self, num_neurons):
+        self.neurons = [Neuron() for _ in range(num_neurons)]
+
+    def connect(self, target_layer):
+        for src in self.neurons:
+            for dst in target_layer.neurons:
+                # прямые связи:
+                fwd_link = Link()
+                fwd_link.src_neuron = src
+                fwd_link.dst_neuron = dst
+                src.out_links.append(fwd_link)
+
+                # обратные связи
+                back_link = Link()
+                back_link.src_neuron = dst
+                back_link.dst_neuron = src
+                dst.out_links.append(back_link)
+
+
+class Net:
+    def __init__(self):
+        self.layers = list()
+
+    def new_layer(self, layer_name, num_neurons):
+        layer = Layer(layer_name)
+        layer.create(num_neurons)
+        self.layers.append(layer)
+        return layer
+
+    def print(self):
+        print("Layers: {}".format(len(self.layers)))
+        for layer in self.layers:
+            print("{}: {}".format(layer.name, len(layer.neurons)))
 
 
 class Board(basis.Entity):
@@ -34,6 +89,69 @@ class Board(basis.Entity):
                     pass
 
 
+class NetView(UIWindow):
+    def __init__(self, net, position, ui_manager):
+        super().__init__(pygame.Rect(position, (320, 240)), ui_manager, window_display_title='Neural Net',
+                         object_id='#neural_net')
+        self.net = net
+        self.size = (200, 200)
+        self.screen = pygame.Surface(self.size)
+
+    def process_event(self, event):
+        handled = super().process_event(event)
+        return handled
+
+    def update(self, time_delta):
+        super().update(time_delta)
+
+    def draw(self):
+        self.screen.fill((0, 0, 0))
+
+        if self.net is None:
+            return
+
+        max_neurons = 0
+        for layer in self.net.layers:
+            n = len(layer.neurons)
+            if n > max_neurons:
+                max_neurons = n
+
+        if max_neurons < 1:
+            return
+
+        net_area_width = self.size[0]
+        net_area_height = self.size[1]
+
+        sx = net_area_width / max_neurons
+        sy = net_area_height / len(self.net.layers)
+        s = int(min(sx, sy))
+        neuron_fill_coeff = 0.5  # какой процент места занимает нейрон в отведенном ему квадратике
+
+        radius = int((s * neuron_fill_coeff) / 2)
+
+        y = net_area_height - radius
+        for layer in self.net.layers:
+            layer_sx = s * len(layer.neurons)
+            empty_space_left = int((net_area_width - layer_sx) / 2)
+            x = empty_space_left + radius
+            for neuron in layer.neurons:
+                neuron.pos = [x, y]
+                pygame.draw.circle(self.screen, (100, 100, 100), neuron.pos, radius)
+                x += s
+            y -= s
+
+        for layer in self.net.layers:
+            for neuron in layer.neurons:
+                for link in neuron.out_links:
+                    src_x = link.src_neuron.pos[0]
+                    src_y = link.src_neuron.pos[1] - radius
+                    dst_x = link.dst_neuron.pos[0]
+                    dst_y = link.dst_neuron.pos[1] + radius
+                    pygame.draw.line(self.screen, (50, 50, 50), (src_x, src_y), (dst_x, dst_y))
+
+        pygame.display.flip()
+
+
 class Viewer(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -41,13 +159,23 @@ class Viewer(basis.Entity):
         pygame.display.set_caption('Cells')
         self.board = None
         size = width, height = 640, 480
+        self.bk_color = (0, 0, 0)
         self.point_color = (100, 100, 100)
         self.screen = pygame.display.set_mode(size, pygame.RESIZABLE)
+        self.background_surface = None
         self.show_grid = True
         self.delay = 0.5
         self.ui_manager = pygame_gui.UIManager(size)
         self.clock = pygame.time.Clock()
+        self.toggle_grid_button = None
+        self.net_window = None
+        self.recreate_ui()
 
+    def recreate_ui(self):
+        self.background_surface = pygame.Surface(self.screen.get_size()).convert()
+        self.background_surface.fill(self.bk_color)
+        self.ui_manager.set_window_resolution(self.screen.get_size())
+        self.ui_manager.clear_and_reset()
         button_layout_rect = pygame.Rect(0, 0, 100, 20)
         button_layout_rect.topright = (-10, 10)
         self.toggle_grid_button = pygame_gui.elements.UIButton(relative_rect=button_layout_rect,
@@ -56,6 +184,7 @@ class Viewer(basis.Entity):
                                                                         'right': 'right',
                                                                         'top': 'top',
                                                                         'bottom': 'bottom'})
+        self.net_window = NetView(None, (100, 100), self.ui_manager)
 
     def set_board(self, board):
         self.board = board
@@ -69,6 +198,7 @@ class Viewer(basis.Entity):
             if event.type == pygame.VIDEORESIZE:
                 print("new size {}x{}".format(event.w, event.h))
                 self.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
+                self.recreate_ui()
             if event.type == pygame.USEREVENT:
                 if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                     if event.ui_element == self.toggle_grid_button:
@@ -77,6 +207,8 @@ class Viewer(basis.Entity):
             self.ui_manager.process_events(event)
 
         self.ui_manager.update(time_delta)
+
+        self.screen.blit(self.background_surface, (0, 0))
 
         actual_size = pygame.display.get_window_size()
 
@@ -98,7 +230,6 @@ class Viewer(basis.Entity):
                     y += scaled_cell_size
 
         self.ui_manager.draw_ui(self.screen)
-        #pygame.display.flip()
         pygame.display.update()
 
 
@@ -107,6 +238,7 @@ class Agent(basis.Entity):
         super().__init__()
         self.board = None
         self._position = [0, 0]
+        self.net = Net()
 
     def set_board(self, board):
         self.board = board
