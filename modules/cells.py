@@ -5,6 +5,7 @@ import pygame
 import pygame_gui
 from pygame_gui.ui_manager import UIManager
 from pygame_gui.elements.ui_window import UIWindow
+from pygame_gui.elements.ui_image import UIImage
 
 
 class Link:
@@ -63,6 +64,7 @@ class Net:
 class Board(basis.Entity):
     def __init__(self):
         super().__init__()
+        self.agents = list()
         self.size = 100
         self.cell_size = 3
         self.visual_field = pygame.Surface((self.size_in_pixels(), self.size_in_pixels()))
@@ -74,14 +76,17 @@ class Board(basis.Entity):
     def size_in_pixels(self):
         return self.size * self.cell_size
 
+    def add_agent(self, agent):
+        self.agents.append(agent)
+
     def draw(self):
         self.visual_field.fill(self.back_color)
 
-        for ent in self.entities:
-            if isinstance(ent, Agent):
+        for agent in self.agents:
+            if isinstance(agent, Agent):
                 try:
-                    p = ent.position
-                    agent_pos = ent.position
+                    p = agent.position
+                    agent_pos = agent.position
                     agent_rect = pygame.Rect(agent_pos[0] * self.cell_size, agent_pos[1] * self.cell_size,
                                              self.cell_size, self.cell_size)
                     pygame.draw.rect(self.visual_field, (100, 0, 0), agent_rect)
@@ -94,8 +99,13 @@ class NetView(UIWindow):
         super().__init__(pygame.Rect(position, (320, 240)), ui_manager, window_display_title='Neural Net',
                          object_id='#neural_net')
         self.net = net
-        self.size = (200, 200)
-        self.screen = pygame.Surface(self.size)
+        surface_size = self.get_container().get_size()
+        self.size = surface_size
+        self.surface_element = UIImage(pygame.Rect((0, 0), surface_size), pygame.Surface(surface_size).convert(),
+                                       manager=ui_manager, container=self, parent_element=self)
+
+    def set_net(self, net):
+        self.net = net
 
     def process_event(self, event):
         handled = super().process_event(event)
@@ -103,9 +113,10 @@ class NetView(UIWindow):
 
     def update(self, time_delta):
         super().update(time_delta)
+        self.draw()
 
     def draw(self):
-        self.screen.fill((0, 0, 0))
+        self.surface_element.image.fill((0, 0, 0))
 
         if self.net is None:
             return
@@ -136,7 +147,7 @@ class NetView(UIWindow):
             x = empty_space_left + radius
             for neuron in layer.neurons:
                 neuron.pos = [x, y]
-                pygame.draw.circle(self.screen, (100, 100, 100), neuron.pos, radius)
+                pygame.draw.circle(self.surface_element.image, (100, 100, 100), neuron.pos, radius)
                 x += s
             y -= s
 
@@ -147,9 +158,7 @@ class NetView(UIWindow):
                     src_y = link.src_neuron.pos[1] - radius
                     dst_x = link.dst_neuron.pos[0]
                     dst_y = link.dst_neuron.pos[1] + radius
-                    pygame.draw.line(self.screen, (50, 50, 50), (src_x, src_y), (dst_x, dst_y))
-
-        pygame.display.flip()
+                    pygame.draw.line(self.surface_element.image, (50, 50, 50), (src_x, src_y), (dst_x, dst_y))
 
 
 class Viewer(basis.Entity):
@@ -212,6 +221,7 @@ class Viewer(basis.Entity):
 
         actual_size = pygame.display.get_window_size()
 
+        # draw the board
         if self.board:
             board_size = min(actual_size[0], actual_size[1])
             self.board.draw()
@@ -229,6 +239,14 @@ class Viewer(basis.Entity):
                         x += scaled_cell_size
                     y += scaled_cell_size
 
+        # draw agent's neural network
+        agent = None
+        if self.board:
+            if len(self.board.agents) > 0:
+                agent = self.board.agents[0]
+        if agent:
+            self.net_window.set_net(agent.net)
+
         self.ui_manager.draw_ui(self.screen)
         pygame.display.update()
 
@@ -238,11 +256,18 @@ class Agent(basis.Entity):
         super().__init__()
         self.board = None
         self._position = [0, 0]
+
+        # neural net
         self.net = Net()
+        layer1 = self.net.new_layer("in", 8)
+        layer2 = self.net.new_layer("mid", 4)
+        layer3 = self.net.new_layer("out", 2)
+        layer1.connect(layer2)
+        layer2.connect(layer3)
 
     def set_board(self, board):
         self.board = board
-        self.board.add_entity(self)
+        self.board.add_agent(self)
 
     @property
     def position(self):
