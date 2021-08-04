@@ -1,9 +1,9 @@
 import basis
 import sys
 import random
+from enum import Enum
 import pygame
 import pygame_gui
-from pygame_gui.ui_manager import UIManager
 from pygame_gui.elements.ui_window import UIWindow
 from pygame_gui.elements.ui_image import UIImage
 
@@ -61,6 +61,64 @@ class Net:
             print("{}: {}".format(layer.name, len(layer.neurons)))
 
 
+class AgentAction(Enum):
+    NoAction = 0,
+    MoveForward = 1,
+    TurnLeft = 2,
+    TurnRight = 3
+
+
+class Agent(basis.Entity):
+    def __init__(self):
+        super().__init__()
+        self.board = None
+        self._position = [0, 0]
+        self._orientation = [1, 0]
+
+        # neural net
+        self.net = Net()
+        layer1 = self.net.new_layer("in", 8)
+        layer2 = self.net.new_layer("mid", 4)
+        layer3 = self.net.new_layer("out", 2)
+        layer1.connect(layer2)
+        layer2.connect(layer3)
+
+    def set_board(self, board):
+        self.board = board
+        self.board.add_agent(self)
+
+    @property
+    def position(self):
+        return self._position
+
+    @property
+    def orientation(self):
+        return self._orientation
+
+    def step(self):
+        if not self.board:
+            return
+
+        choice = random.choice(list(AgentAction))
+        if choice == AgentAction.NoAction:
+            pass
+        if choice == AgentAction.MoveForward:
+            self.position[0] += self.orientation[0]
+            self.position[1] += self.orientation[1]
+            self.position[0] = max(0, self.position[0])
+            self.position[0] = min(self.position[0], self.board.size - 1)
+            self.position[1] = max(0, self.position[1])
+            self.position[1] = min(self.position[1], self.board.size - 1)
+        if choice == AgentAction.TurnLeft:
+            dir_x, dir_y = self._orientation
+            self.orientation[0] = dir_y
+            self.orientation[1] = -dir_x
+        if choice == AgentAction.TurnRight:
+            dir_x, dir_y = self._orientation
+            self.orientation[0] = -dir_y
+            self.orientation[1] = dir_x
+
+
 class Board(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -85,7 +143,6 @@ class Board(basis.Entity):
         for agent in self.agents:
             if isinstance(agent, Agent):
                 try:
-                    p = agent.position
                     agent_pos = agent.position
                     agent_rect = pygame.Rect(agent_pos[0] * self.cell_size, agent_pos[1] * self.cell_size,
                                              self.cell_size, self.cell_size)
@@ -170,6 +227,7 @@ class Viewer(basis.Entity):
         size = width, height = 640, 480
         self.bk_color = (0, 0, 0)
         self.point_color = (100, 100, 100)
+        self.info_color = (255, 255, 100)
         self.screen = pygame.display.set_mode(size, pygame.RESIZABLE)
         self.background_surface = None
         self.show_grid = True
@@ -224,12 +282,13 @@ class Viewer(basis.Entity):
         # draw the board
         if self.board:
             board_size = min(actual_size[0], actual_size[1])
+            scaled_cell_size = board_size / self.board.size
+
             self.board.draw()
             scaled_visual_field = pygame.transform.scale(self.board.visual_field, (board_size, board_size))
             self.screen.blit(scaled_visual_field, (0, 0))
 
             if self.show_grid:
-                scaled_cell_size = board_size / self.board.size
                 y = scaled_cell_size / 2.0
                 for row in range(self.board.size):
                     x = scaled_cell_size / 2.0
@@ -239,48 +298,21 @@ class Viewer(basis.Entity):
                         x += scaled_cell_size
                     y += scaled_cell_size
 
-        # draw agent's neural network
-        agent = None
-        if self.board:
+            agent = None
             if len(self.board.agents) > 0:
                 agent = self.board.agents[0]
-        if agent:
-            self.net_window.set_net(agent.net)
+            if agent:
+                p1 = (agent.position[0] * scaled_cell_size + scaled_cell_size / 2.0,
+                      agent.position[1] * scaled_cell_size + scaled_cell_size / 2.0)
+                p2 = (p1[0] + agent.orientation[0] * scaled_cell_size,
+                      p1[1] + agent.orientation[1] * scaled_cell_size)
+                pygame.draw.line(self.screen, self.info_color, p1, p2, 1)
+
+                # draw agent's neural network
+                self.net_window.set_net(agent.net)
 
         self.ui_manager.draw_ui(self.screen)
         pygame.display.update()
 
 
-class Agent(basis.Entity):
-    def __init__(self):
-        super().__init__()
-        self.board = None
-        self._position = [0, 0]
-
-        # neural net
-        self.net = Net()
-        layer1 = self.net.new_layer("in", 8)
-        layer2 = self.net.new_layer("mid", 4)
-        layer3 = self.net.new_layer("out", 2)
-        layer1.connect(layer2)
-        layer2.connect(layer3)
-
-    def set_board(self, board):
-        self.board = board
-        self.board.add_agent(self)
-
-    @property
-    def position(self):
-        return self._position
-
-    def step(self):
-        if not self.board:
-            return
-
-        self.position[0] += random.choice([-1, 0, 1])
-        self.position[0] = max(0, self.position[0])
-        self.position[0] = min(self.position[0], self.board.size - 1)
-        self.position[1] += random.choice([-1, 0, 1])
-        self.position[1] = max(0, self.position[1])
-        self.position[1] = min(self.position[1], self.board.size - 1)
 

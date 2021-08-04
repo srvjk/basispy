@@ -4,7 +4,6 @@ import inspect
 import logging
 from collections import deque
 
-
 class Entity:
     system = None
 
