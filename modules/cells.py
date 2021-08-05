@@ -68,6 +68,18 @@ class AgentAction(Enum):
     TurnRight = 3
 
 
+class Obstacle(basis.Entity):
+    def __init__(self):
+        super().__init__()
+        self._position = [0, 0]
+
+    @property
+    def position(self):
+        return self._position
+
+    def set_position(self, x, y):
+        self._position = [x, y]
+
 class Agent(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -123,6 +135,7 @@ class Board(basis.Entity):
     def __init__(self):
         super().__init__()
         self.agents = list()
+        self.obstacles = list()
         self.size = 100
         self.cell_size = 3
         self.visual_field = pygame.Surface((self.size_in_pixels(), self.size_in_pixels()))
@@ -137,6 +150,16 @@ class Board(basis.Entity):
     def add_agent(self, agent):
         self.agents.append(agent)
 
+    def create_obstacles(self, density):
+        num_cells = self.size * self.size
+        num_obstacles = int(num_cells * density)
+        for i in range(num_obstacles):
+            x = random.randrange(0, self.size)
+            y = random.randrange(0, self.size)
+            obstacle = Obstacle()
+            obstacle.set_position(x, y)
+            self.obstacles.append(obstacle)
+
     def draw(self):
         self.visual_field.fill(self.back_color)
 
@@ -147,6 +170,16 @@ class Board(basis.Entity):
                     agent_rect = pygame.Rect(agent_pos[0] * self.cell_size, agent_pos[1] * self.cell_size,
                                              self.cell_size, self.cell_size)
                     pygame.draw.rect(self.visual_field, (100, 0, 0), agent_rect)
+                except AttributeError:
+                    pass
+
+        for obstacle in self.obstacles:
+            if isinstance(obstacle, Obstacle):
+                try:
+                    obst_pos = obstacle.position
+                    obst_rect = pygame.Rect(obst_pos[0] * self.cell_size, obst_pos[1] * self.cell_size,
+                                            self.cell_size, self.cell_size)
+                    pygame.draw.rect(self.visual_field, (50, 50, 50), obst_rect)
                 except AttributeError:
                     pass
 

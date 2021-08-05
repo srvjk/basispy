@@ -11,6 +11,7 @@ if not cells:
 
 # создаем нужные сущности
 board = system.new(cells.Board)
+board.create_obstacles(density=0.1)
 
 viewer = system.new(cells.Viewer)
 viewer.set_board(board)
