@@ -24,6 +24,7 @@ agent.set_board(board)
 if viewer:
     system.activate(viewer)
 if agent:
+    agent.set_step_divider(10)
     system.activate(agent)
 
 system.print_entities()

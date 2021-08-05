@@ -4,6 +4,7 @@ import inspect
 import logging
 from collections import deque
 
+
 class Entity:
     system = None
 
@@ -16,6 +17,7 @@ class Entity:
         self.entities = set()         # all nested entities
         self.active_entities = set()  # active nested entities, i.e. those for which step() should be called
         self.entity_name_index = dict()  # nested entity index with name as a key
+        self.step_divider = 1  # this entity will be activated every step_divider steps
 
     @classmethod
     def system_connect(cls, system):
@@ -89,11 +91,17 @@ class Entity:
 
         return result
 
+    def set_step_divider(self, div_value):
+        if div_value < 1:
+            return
+        self.step_divider = div_value
+
 
 class System(Entity):
     def __init__(self):
         super().__init__()
         self.recent_errors = deque(maxlen=10)
+        self.step_counter = 0
 
     def load(self, module_name, dir_path='.'):
         module_full_path = dir_path + '/' + module_name
@@ -119,10 +127,13 @@ class System(Entity):
 
     def step(self):
         for entity in self.active_entities:
-            entity.step()
+            if self.step_counter % entity.step_divider == 0:
+                entity.step()
 
     def operate(self):
+        self.step_counter = 0
         while True:
+            self.step_counter += 1
             self.step()
 
     def report_error(self, error_description):
