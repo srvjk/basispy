@@ -19,6 +19,10 @@ class Neuron:
     def __init__(self):
         self.out_links = list()
         self.pos = [0, 0]
+        self.state = 0
+
+    def set_state(self, state):
+        self.state = state
 
 
 class Layer:
@@ -80,6 +84,7 @@ class Obstacle(basis.Entity):
     def set_position(self, x, y):
         self._position = [x, y]
 
+
 class Agent(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -111,6 +116,13 @@ class Agent(basis.Entity):
         if not self.board:
             return
 
+        front_sensor_color = self.board.get_cell_color(
+            self.position[0] + self.orientation[0], self.position[1] + self.orientation[1])
+        sensor_state = 0
+        if front_sensor_color != self.board.back_color and front_sensor_color != self.board.color_no_color:
+            sensor_state = 1
+        self.net.layers[0].neurons[0].set_state(sensor_state)
+
         choice = random.choice(list(AgentAction))
         if choice == AgentAction.NoAction:
             pass
@@ -139,7 +151,9 @@ class Board(basis.Entity):
         self.size = 100
         self.cell_size = 3
         self.visual_field = pygame.Surface((self.size_in_pixels(), self.size_in_pixels()))
+        self.compressed_visual_field = pygame.Surface((self.size, self.size))  # поле, сжатое до 1 пиксела на клетку
         self.back_color = (10, 10, 10)
+        self.color_no_color = (0, 0, 0)  # цвет для обозначения пространства за пределами поля и т.п.
 
     def size_in_cells(self):
         return self.size
@@ -160,18 +174,13 @@ class Board(basis.Entity):
             obstacle.set_position(x, y)
             self.obstacles.append(obstacle)
 
+    def get_cell_color(self, x, y):
+        if x < 0 or x >= self.size or y < 0 or y >= self.size:
+            return self.color_no_color
+        return self.compressed_visual_field.get_at((x, y))
+
     def draw(self):
         self.visual_field.fill(self.back_color)
-
-        for agent in self.agents:
-            if isinstance(agent, Agent):
-                try:
-                    agent_pos = agent.position
-                    agent_rect = pygame.Rect(agent_pos[0] * self.cell_size, agent_pos[1] * self.cell_size,
-                                             self.cell_size, self.cell_size)
-                    pygame.draw.rect(self.visual_field, (100, 0, 0), agent_rect)
-                except AttributeError:
-                    pass
 
         for obstacle in self.obstacles:
             if isinstance(obstacle, Obstacle):
@@ -183,6 +192,19 @@ class Board(basis.Entity):
                 except AttributeError:
                     pass
 
+        for agent in self.agents:
+            if isinstance(agent, Agent):
+                try:
+                    agent_pos = agent.position
+                    agent_rect = pygame.Rect(agent_pos[0] * self.cell_size, agent_pos[1] * self.cell_size,
+                                             self.cell_size, self.cell_size)
+                    pygame.draw.rect(self.visual_field, (100, 0, 0), agent_rect)
+                except AttributeError:
+                    pass
+
+        # после всей отрисовки создаём вспомогательное сжатое представление доски:
+        pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
+
 
 class NetView(UIWindow):
     def __init__(self, net, position, ui_manager):
@@ -193,6 +215,8 @@ class NetView(UIWindow):
         self.size = surface_size
         self.surface_element = UIImage(pygame.Rect((0, 0), surface_size), pygame.Surface(surface_size).convert(),
                                        manager=ui_manager, container=self, parent_element=self)
+        self.inactive_neuron_color = (50, 50, 50)
+        self.active_neuron_color = (200, 200, 0)
 
     def set_net(self, net):
         self.net = net
@@ -237,7 +261,8 @@ class NetView(UIWindow):
             x = empty_space_left + radius
             for neuron in layer.neurons:
                 neuron.pos = [x, y]
-                pygame.draw.circle(self.surface_element.image, (100, 100, 100), neuron.pos, radius)
+                neuron_color = self.active_neuron_color if neuron.state == 1 else self.inactive_neuron_color
+                pygame.draw.circle(self.surface_element.image, neuron_color, neuron.pos, radius)
                 x += s
             y -= s
 
@@ -320,6 +345,8 @@ class Viewer(basis.Entity):
             self.board.draw()
             scaled_visual_field = pygame.transform.scale(self.board.visual_field, (board_size, board_size))
             self.screen.blit(scaled_visual_field, (0, 0))
+
+            # self.screen.blit(self.board.compressed_visual_field, (board_size, 0))
 
             if self.show_grid:
                 y = scaled_cell_size / 2.0
