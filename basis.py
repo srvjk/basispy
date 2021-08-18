@@ -14,10 +14,11 @@ class Entity:
             if not self.system:
                 logging.warning("creating Entity before system_connect")
 
-        self.entities = set()         # all nested entities
+        self.entities = set()         # вложенные сущности
         self.active_entities = set()  # active nested entities, i.e. those for which step() should be called
         self.entity_name_index = dict()  # nested entity index with name as a key
         self.step_divider = 1  # this entity will be activated every step_divider steps
+        self.step_counter = 0  # счетчик шагов индивидуален для каждой сущности
 
     @classmethod
     def system_connect(cls, system):
@@ -96,6 +97,9 @@ class Entity:
             return
         self.step_divider = div_value
 
+    def step(self):
+        self.step_counter += 1
+
 
 class System(Entity):
     def __init__(self):
@@ -126,6 +130,7 @@ class System(Entity):
         return module
 
     def step(self):
+        super().step()
         for entity in self.active_entities:
             if self.step_counter % entity.step_divider == 0:
                 entity.step()

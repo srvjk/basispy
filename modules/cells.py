@@ -6,6 +6,7 @@ import pygame
 import pygame_gui
 from pygame_gui.elements.ui_window import UIWindow
 from pygame_gui.elements.ui_image import UIImage
+from pygame_gui.elements.ui_text_box import UITextBox
 
 
 class Link:
@@ -17,31 +18,60 @@ class Link:
         self.sign = 1  # знак связи (+1 для возбуждающих и -1 для тормозящих связей)
 
 
-class Neuron:
+class BasicNeuron:
     def __init__(self):
         self.out_links = list()
         self.pos = [0, 0]
-        self.state = 0
         self.pre_mediator_quantity = 0
         self.post_mediator_quantity = 0
         self.firing_mediator_threshold = 1.0  # порог количества медиатора, необходимый для срабатывания
-        self.out_mediator_quantum = 0.1  # количество нейромедиатора, которое будет отправлено нейронам-получателям
+        self.out_mediator_quantum = 0.1  # количество медиатора, которое будет отправлено нейронам-получателям
 
-    def set_state(self, state):
-        self.state = state
+    def set_activity(self, activity):
+        pass
+
+    def is_active(self):
+        if self.post_mediator_quantity >= self.firing_mediator_threshold:
+            return True
+        return False
+
+    def add_mediator(self, mediator_quantity):
+        pass
+
+    def fire(self):
+        pass
+
+    def swap_mediator_buffers(self):
+        pass
+
+
+class Sensor(BasicNeuron):
+    def __init__(self):
+        super().__init__()
+
+    def set_activity(self, activity):
+        if activity:
+            self.post_mediator_quantity = self.firing_mediator_threshold
+        else:
+            self.post_mediator_quantity = 0
+
+
+class Neuron(BasicNeuron):
+    def __init__(self):
+        super().__init__()
 
     def add_mediator(self, mediator_quantity):
         self.pre_mediator_quantity += mediator_quantity
 
     def fire(self):
         """
-        Рабочая функция нейрона - выстрел потенциала действия
+        Рабочая функция нейрона - 'выстрел' потенциала действия
 
         Раздаёт медиатор по всем исходящим связям с учетом их весов и полярностей.
         Кол-во медиатора фиксировано для данного нейрона, но при передаче умножается на вес и полярность связи,
         так что разные постсинаптические нейроны получат разное итоговое кол-во медиатора.
         """
-        if self.mediator_quantity > self.firing_mediator_threshold:
+        if self.post_mediator_quantity >= self.firing_mediator_threshold:
             for link in self.out_links:
                 link.dst_neuron.add_mediator(self.out_mediator_quantum * link.weight * link.sign)
 
@@ -49,13 +79,14 @@ class Neuron:
         self.post_mediator_quantity = self.pre_mediator_quantity
         self.pre_mediator_quantity = 0
 
+
 class Layer:
     def __init__(self, name):
         self.name = name
         self.neurons = list()
 
-    def create(self, num_neurons):
-        self.neurons = [Neuron() for _ in range(num_neurons)]
+    def create(self, neur_num, neur_class):
+        self.neurons = [neur_class() for _ in range(neur_num)]
 
     def connect(self, target_layer):
         for src in self.neurons:
@@ -73,13 +104,14 @@ class Layer:
                 dst.out_links.append(back_link)
 
 
-class Net:
+class Net(basis.Entity):
     def __init__(self):
+        super().__init__()
         self.layers = list()
 
-    def new_layer(self, layer_name, num_neurons):
+    def new_layer(self, layer_name, neur_num, neur_class):
         layer = Layer(layer_name)
-        layer.create(num_neurons)
+        layer.create(neur_num, neur_class)
         self.layers.append(layer)
         return layer
 
@@ -89,6 +121,8 @@ class Net:
             print("{}: {}".format(layer.name, len(layer.neurons)))
 
     def step(self):
+        super().step()
+
         # фаза 1: пройтись во всем нейронам и активировать, какие надо
         # порядок обхода не имеет значения
         for layer in self.layers:
@@ -130,11 +164,12 @@ class Agent(basis.Entity):
 
         # neural net
         self.net = Net()
-        layer1 = self.net.new_layer("in", 8)
-        layer2 = self.net.new_layer("mid", 4)
-        layer3 = self.net.new_layer("out", 2)
+        layer1 = self.net.new_layer("in", 8, Sensor)
+        layer2 = self.net.new_layer("mid", 4, Neuron)
+        layer3 = self.net.new_layer("out", 2, Neuron)
         layer1.connect(layer2)
         layer2.connect(layer3)
+        self.system.activate(self.net)
 
     def set_board(self, board):
         self.board = board
@@ -154,10 +189,10 @@ class Agent(basis.Entity):
 
         front_sensor_color = self.board.get_cell_color(
             self.position[0] + self.orientation[0], self.position[1] + self.orientation[1])
-        sensor_state = 0
+        sensor_active = False
         if front_sensor_color != self.board.back_color and front_sensor_color != self.board.color_no_color:
-            sensor_state = 1
-        self.net.layers[0].neurons[0].set_state(sensor_state)
+            sensor_active = True
+        self.net.layers[0].neurons[0].set_activity(sensor_active)
 
         choice = random.choice(list(AgentAction))
         if choice == AgentAction.NoAction:
@@ -297,7 +332,7 @@ class NetView(UIWindow):
             x = empty_space_left + radius
             for neuron in layer.neurons:
                 neuron.pos = [x, y]
-                neuron_color = self.active_neuron_color if neuron.state == 1 else self.inactive_neuron_color
+                neuron_color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
                 pygame.draw.circle(self.surface_element.image, neuron_color, neuron.pos, radius)
                 x += s
             y -= s
@@ -311,6 +346,42 @@ class NetView(UIWindow):
                     dst_y = link.dst_neuron.pos[1] + radius
                     pygame.draw.line(self.surface_element.image, (50, 50, 50), (src_x, src_y), (dst_x, dst_y))
 
+
+class InfoView(UIWindow, basis.Entity):
+    def __init__(self, position, ui_manager):
+        UIWindow.__init__(self, pygame.Rect(position, (320, 240)), ui_manager, window_display_title='Information',
+                         object_id='#information')
+        basis.Entity.__init__(self)
+
+        '''
+        surface_size = self.get_container().get_size()
+        self.size = surface_size
+        self.surface_element = UIImage(pygame.Rect((0, 0), surface_size), pygame.Surface(surface_size).convert(),
+                                       manager=ui_manager, container=self, parent_element=self)
+        self.font = pygame.font.SysFont('Courier New', 12)
+        self.text_color = (200, 200, 200)
+        '''
+
+        self.page_display = UITextBox("Some text here",
+                                      pygame.Rect((0, 0), self.get_container().get_size()),
+                                      manager=ui_manager,
+                                      container=self,
+                                      parent_element=self)
+
+    def process_event(self, event):
+        handled = super().process_event(event)
+        return handled
+
+    '''
+    def update(self, time_delta):
+        super().update(time_delta)
+        self.draw()
+
+    def draw(self):
+        self.surface_element.image.fill((0, 0, 0))
+        text_surface = self.font.render(str(self.system.step_counter), False, self.text_color)
+        self.surface_element.image.blit(text_surface, (0, 0))
+    '''
 
 class Viewer(basis.Entity):
     def __init__(self):
@@ -330,6 +401,7 @@ class Viewer(basis.Entity):
         self.clock = pygame.time.Clock()
         self.toggle_grid_button = None
         self.net_window = None
+        self.info_window = None
         self.recreate_ui()
 
     def recreate_ui(self):
@@ -346,6 +418,7 @@ class Viewer(basis.Entity):
                                                                         'top': 'top',
                                                                         'bottom': 'bottom'})
         self.net_window = NetView(None, (100, 100), self.ui_manager)
+        self.info_window = InfoView((500, 100), self.ui_manager)
 
     def set_board(self, board):
         self.board = board
