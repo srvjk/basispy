@@ -163,7 +163,7 @@ class Agent(basis.Entity):
         self._orientation = [1, 0]
 
         # neural net
-        self.net = Net()
+        self.net = self.new(Net)
         layer1 = self.net.new_layer("in", 8, Sensor)
         layer2 = self.net.new_layer("mid", 4, Neuron)
         layer3 = self.net.new_layer("out", 2, Neuron)
@@ -346,42 +346,60 @@ class NetView(UIWindow):
                     dst_y = link.dst_neuron.pos[1] + radius
                     pygame.draw.line(self.surface_element.image, (50, 50, 50), (src_x, src_y), (dst_x, dst_y))
 
+def make_entity_tree(ent, indent=""):
+    indent += " "
+    result = list()
+    text = "{}{} {}".format(indent, ent.__class__.__name__, id(ent))
+    result.append(text)
+
+    for child in ent.entities:
+        lst = make_entity_tree(child)
+        result.extend(lst)
+
+    return result
 
 class InfoView(UIWindow, basis.Entity):
     def __init__(self, position, ui_manager):
-        UIWindow.__init__(self, pygame.Rect(position, (320, 240)), ui_manager, window_display_title='Information',
+        UIWindow.__init__(self, pygame.Rect(position, (500, 300)), ui_manager, window_display_title='Information',
                          object_id='#information')
         basis.Entity.__init__(self)
 
-        '''
-        surface_size = self.get_container().get_size()
-        self.size = surface_size
-        self.surface_element = UIImage(pygame.Rect((0, 0), surface_size), pygame.Surface(surface_size).convert(),
-                                       manager=ui_manager, container=self, parent_element=self)
-        self.font = pygame.font.SysFont('Courier New', 12)
-        self.text_color = (200, 200, 200)
-        '''
+        size = self.get_container().get_size()
+        lst_items = make_entity_tree(self.system)
+        self.ent_list = pygame_gui.elements.UISelectionList(pygame.Rect((0, 0), (200, size[1])),
+                                                            lst_items,
+                                                            manager=ui_manager,
+                                                            container=self,
+                                                            parent_element=self)
 
-        self.page_display = UITextBox("Some text here",
-                                      pygame.Rect((0, 0), self.get_container().get_size()),
+        text = "Some text"
+        self.page_display = UITextBox(text,
+                                      pygame.Rect(
+                                          (self.ent_list.rect.width, 0),
+                                          (size[0] - self.ent_list.rect.width, size[1])),
                                       manager=ui_manager,
                                       container=self,
                                       parent_element=self)
 
     def process_event(self, event):
         handled = super().process_event(event)
+
+        if event.type == pygame.USEREVENT:
+            if event.user_type == pygame_gui.UI_SELECTION_LIST_NEW_SELECTION:
+                if event.ui_element == self.ent_list:
+                    text = self.ent_list.get_single_selection()
+                    size = self.get_container().get_size()
+                    self.page_display = UITextBox(text,
+                                                  pygame.Rect(
+                                                      (self.ent_list.rect.width, 0),
+                                                      (size[0] - self.ent_list.rect.width, size[1])),
+                                                  manager=self.ui_manager,
+                                                  container=self,
+                                                  parent_element=self)
+                    handled = True
+
         return handled
 
-    '''
-    def update(self, time_delta):
-        super().update(time_delta)
-        self.draw()
-
-    def draw(self):
-        self.surface_element.image.fill((0, 0, 0))
-        text_surface = self.font.render(str(self.system.step_counter), False, self.text_color)
-        self.surface_element.image.blit(text_surface, (0, 0))
-    '''
 
 class Viewer(basis.Entity):
     def __init__(self):
