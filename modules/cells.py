@@ -3,10 +3,7 @@ import sys
 import random
 from enum import Enum
 import pygame
-import pygame_gui
-from pygame_gui.elements.ui_window import UIWindow
-from pygame_gui.elements.ui_image import UIImage
-from pygame_gui.elements.ui_text_box import UITextBox
+from pgu import gui
 
 
 class Link:
@@ -276,7 +273,7 @@ class Board(basis.Entity):
         # после всей отрисовки создаём вспомогательное сжатое представление доски:
         pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
 
-
+'''
 class NetView(UIWindow):
     def __init__(self, net, position, ui_manager):
         super().__init__(pygame.Rect(position, (320, 240)), ui_manager, window_display_title='Neural Net',
@@ -399,6 +396,21 @@ class InfoView(UIWindow, basis.Entity):
                     handled = True
 
         return handled
+'''
+
+class GeneralControl(gui.Table):
+    def __init__(self, **params):
+        gui.Table.__init__(self, **params)
+
+        self.grid_btn = gui.Button("Grid")
+        self.tr()
+        self.td(self.grid_btn, align=-1)
+
+        self.net_view_button = gui.Button("Net view")
+        self.td(self.net_view_button, align=-1)
+
+        self.info_view_button = gui.Button("Info view")
+        self.td(self.info_view_button, align=-1)
 
 
 class Viewer(basis.Entity):
@@ -415,31 +427,31 @@ class Viewer(basis.Entity):
         self.background_surface = None
         self.show_grid = True
         self.delay = 0.5
-        self.ui_manager = pygame_gui.UIManager(size)
         self.clock = pygame.time.Clock()
         self.toggle_grid_button = None
         self.net_window = None
         self.info_window = None
         self.recreate_ui()
 
+        # pgu initialization
+        self.pgu_app = gui.App()
+        gen_ctrl = GeneralControl()
+        container = gui.Container(align=1, valign=-1)
+        container.add(gen_ctrl, 0, 0)
+        self.pgu_app.init(container)
+
+        gen_ctrl.grid_btn.connect(gui.CLICK, self.toggle_grid)
+
+
     def recreate_ui(self):
         self.background_surface = pygame.Surface(self.screen.get_size()).convert()
         self.background_surface.fill(self.bk_color)
-        self.ui_manager.set_window_resolution(self.screen.get_size())
-        self.ui_manager.clear_and_reset()
-        button_layout_rect = pygame.Rect(0, 0, 100, 20)
-        button_layout_rect.topright = (-10, 10)
-        self.toggle_grid_button = pygame_gui.elements.UIButton(relative_rect=button_layout_rect,
-                                                               text='Grid', manager=self.ui_manager,
-                                                               anchors={'left': 'right',
-                                                                        'right': 'right',
-                                                                        'top': 'top',
-                                                                        'bottom': 'bottom'})
-        self.net_window = NetView(None, (100, 100), self.ui_manager)
-        self.info_window = InfoView((500, 100), self.ui_manager)
 
     def set_board(self, board):
         self.board = board
+
+    def toggle_grid(self):
+        self.show_grid = not self.show_grid
 
     def step(self):
         time_delta = self.clock.tick(60) / 1000.0
@@ -452,13 +464,9 @@ class Viewer(basis.Entity):
                 self.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
                 self.recreate_ui()
             if event.type == pygame.USEREVENT:
-                if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
-                    if event.ui_element == self.toggle_grid_button:
-                        self.show_grid = not self.show_grid
-
-            self.ui_manager.process_events(event)
-
-        self.ui_manager.update(time_delta)
+                pass
+            else:
+                self.pgu_app.event(event)
 
         self.screen.blit(self.background_surface, (0, 0))
 
@@ -495,10 +503,7 @@ class Viewer(basis.Entity):
                       p1[1] + agent.orientation[1] * scaled_cell_size)
                 pygame.draw.line(self.screen, self.info_color, p1, p2, 1)
 
-                # draw agent's neural network
-                self.net_window.set_net(agent.net)
-
-        self.ui_manager.draw_ui(self.screen)
+        self.pgu_app.paint()
         pygame.display.update()
 
 
