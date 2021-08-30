@@ -398,6 +398,7 @@ class InfoView(UIWindow, basis.Entity):
         return handled
 '''
 
+
 class GeneralControl(gui.Table):
     def __init__(self, **params):
         gui.Table.__init__(self, **params)
@@ -413,6 +414,33 @@ class GeneralControl(gui.Table):
         self.td(self.info_view_button, align=-1)
 
 
+class ChildWindow(gui.Container):
+    def __init__(self, **params):
+        gui.Container.__init__(self, **params)
+
+    def paint(self, surface):
+        surface.fill((30, 30, 30, 255))
+        super().paint(surface)
+
+
+class NetView(ChildWindow):
+    def __init__(self, **params):
+        ChildWindow.__init__(self, **params)
+
+
+class InfoView(ChildWindow):
+    def __init__(self, **params):
+        ChildWindow.__init__(self, **params)
+        self.ent_list = gui.List(width=100, height=100)
+        self.add(self.ent_list, 0, 0)
+
+        self.ent_list.add("item1", value=1)
+        self.ent_list.add("  item2", value=1)
+        self.ent_list.add("    item3", value=2)
+        self.ent_list.resize()
+        self.ent_list.repaint()
+
+
 class Viewer(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -426,22 +454,26 @@ class Viewer(basis.Entity):
         self.screen = pygame.display.set_mode(size, pygame.RESIZABLE)
         self.background_surface = None
         self.show_grid = True
+        self.show_net_view = True
         self.delay = 0.5
         self.clock = pygame.time.Clock()
         self.toggle_grid_button = None
-        self.net_window = None
-        self.info_window = None
         self.recreate_ui()
 
         # pgu initialization
         self.pgu_app = gui.App()
         gen_ctrl = GeneralControl()
-        container = gui.Container(align=1, valign=-1)
-        container.add(gen_ctrl, 0, 0)
-        self.pgu_app.init(container)
+        self.container = gui.Container(align=1, valign=-1)
+        self.container.add(gen_ctrl, 0, 0)
 
         gen_ctrl.grid_btn.connect(gui.CLICK, self.toggle_grid)
+        gen_ctrl.net_view_button.connect(gui.CLICK, self.toggle_net_view)
+        gen_ctrl.info_view_button.connect(gui.CLICK, self.toggle_info_view)
 
+        self.net_view = None
+        self.info_view = None
+
+        self.pgu_app.init(self.container)
 
     def recreate_ui(self):
         self.background_surface = pygame.Surface(self.screen.get_size()).convert()
@@ -452,6 +484,24 @@ class Viewer(basis.Entity):
 
     def toggle_grid(self):
         self.show_grid = not self.show_grid
+
+    def toggle_net_view(self):
+        if self.net_view:
+            self.container.remove(self.net_view)
+            self.net_view = None
+        else:
+            self.net_view = NetView(width=320, height=240)
+            self.container.add(self.net_view, 200, 200)
+        self.container.repaint()
+
+    def toggle_info_view(self):
+        if self.info_view:
+            self.container.remove(self.info_view)
+            self.info_view = None
+        else:
+            self.info_view = InfoView(width=320, height=240)
+            self.container.add(self.info_view, 200, 500)
+        self.container.repaint()
 
     def step(self):
         time_delta = self.clock.tick(60) / 1000.0
