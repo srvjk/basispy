@@ -6,6 +6,7 @@ import imgui
 from imgui.integrations.glfw import GlfwRenderer
 import glfw
 import OpenGL.GL as gl
+import moderngl
 
 
 class Link:
@@ -392,6 +393,7 @@ class Viewer(basis.Entity):
         pygame.display.update()
 '''
 
+
 class Viewer(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -400,6 +402,7 @@ class Viewer(basis.Entity):
         self.render_engine = GlfwRenderer(self.window)
         self.win_width = 1024
         self.win_height = 768
+        self.gl_ctx = moderngl.create_context()
 
     def draw_toolbar(self):
         imgui.begin("Toolbar")
@@ -414,8 +417,8 @@ class Viewer(basis.Entity):
         imgui.text("Some other text")
 
         draw_list = imgui.get_window_draw_list()
-        draw_list.add_circle(100, 60, 30, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=1)
-        draw_list.add_rect(20, 35, 90, 80, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=3)
+        wx, wy = imgui.get_window_position()
+        draw_list.add_circle(wx + 100, wy + 60, 30, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=1)
 
         imgui.end()
 
@@ -424,8 +427,9 @@ class Viewer(basis.Entity):
         glfw.set_window_title(self.window, "Cells")
         glfw.set_window_size(self.window, self.win_width, self.win_height)
 
-        gl.glClearColor(0.1, 0.1, 0.1, 1.0)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+        #gl.glClearColor(0.1, 0.1, 0.1, 1.0)
+        #gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+        self.gl_ctx.clear(0.1, 0.1, 0.1, 0.0)
 
         self.render_engine.process_inputs()
 
