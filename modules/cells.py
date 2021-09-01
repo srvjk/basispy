@@ -2,8 +2,10 @@ import basis
 import sys
 import random
 from enum import Enum
-import pygame
-from pgu import gui
+import imgui
+from imgui.integrations.glfw import GlfwRenderer
+import glfw
+import OpenGL.GL as gl
 
 
 class Link:
@@ -210,7 +212,7 @@ class Agent(basis.Entity):
             self.orientation[0] = -dir_y
             self.orientation[1] = dir_x
 
-
+'''
 class Board(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -272,173 +274,6 @@ class Board(basis.Entity):
 
         # после всей отрисовки создаём вспомогательное сжатое представление доски:
         pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
-
-'''
-class NetView(UIWindow):
-    def __init__(self, net, position, ui_manager):
-        super().__init__(pygame.Rect(position, (320, 240)), ui_manager, window_display_title='Neural Net',
-                         object_id='#neural_net')
-        self.net = net
-        surface_size = self.get_container().get_size()
-        self.size = surface_size
-        self.surface_element = UIImage(pygame.Rect((0, 0), surface_size), pygame.Surface(surface_size).convert(),
-                                       manager=ui_manager, container=self, parent_element=self)
-        self.inactive_neuron_color = (50, 50, 50)
-        self.active_neuron_color = (200, 200, 0)
-
-    def set_net(self, net):
-        self.net = net
-
-    def process_event(self, event):
-        handled = super().process_event(event)
-        return handled
-
-    def update(self, time_delta):
-        super().update(time_delta)
-        self.draw()
-
-    def draw(self):
-        self.surface_element.image.fill((0, 0, 0))
-
-        if self.net is None:
-            return
-
-        max_neurons = 0
-        for layer in self.net.layers:
-            n = len(layer.neurons)
-            if n > max_neurons:
-                max_neurons = n
-
-        if max_neurons < 1:
-            return
-
-        net_area_width = self.size[0]
-        net_area_height = self.size[1]
-
-        sx = net_area_width / max_neurons
-        sy = net_area_height / len(self.net.layers)
-        s = int(min(sx, sy))
-        neuron_fill_coeff = 0.5  # какой процент места занимает нейрон в отведенном ему квадратике
-
-        radius = int((s * neuron_fill_coeff) / 2)
-
-        y = net_area_height - radius
-        for layer in self.net.layers:
-            layer_sx = s * len(layer.neurons)
-            empty_space_left = int((net_area_width - layer_sx) / 2)
-            x = empty_space_left + radius
-            for neuron in layer.neurons:
-                neuron.pos = [x, y]
-                neuron_color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
-                pygame.draw.circle(self.surface_element.image, neuron_color, neuron.pos, radius)
-                x += s
-            y -= s
-
-        for layer in self.net.layers:
-            for neuron in layer.neurons:
-                for link in neuron.out_links:
-                    src_x = link.src_neuron.pos[0]
-                    src_y = link.src_neuron.pos[1] - radius
-                    dst_x = link.dst_neuron.pos[0]
-                    dst_y = link.dst_neuron.pos[1] + radius
-                    pygame.draw.line(self.surface_element.image, (50, 50, 50), (src_x, src_y), (dst_x, dst_y))
-
-def make_entity_tree(ent, indent=""):
-    indent += " "
-    result = list()
-    text = "{}{} {}".format(indent, ent.__class__.__name__, id(ent))
-    result.append(text)
-
-    for child in ent.entities:
-        lst = make_entity_tree(child)
-        result.extend(lst)
-
-    return result
-
-class InfoView(UIWindow, basis.Entity):
-    def __init__(self, position, ui_manager):
-        UIWindow.__init__(self, pygame.Rect(position, (500, 300)), ui_manager, window_display_title='Information',
-                         object_id='#information')
-        basis.Entity.__init__(self)
-
-        size = self.get_container().get_size()
-        lst_items = make_entity_tree(self.system)
-        self.ent_list = pygame_gui.elements.UISelectionList(pygame.Rect((0, 0), (200, size[1])),
-                                                            lst_items,
-                                                            manager=ui_manager,
-                                                            container=self,
-                                                            parent_element=self)
-
-        text = "Some text"
-        self.page_display = UITextBox(text,
-                                      pygame.Rect(
-                                          (self.ent_list.rect.width, 0),
-                                          (size[0] - self.ent_list.rect.width, size[1])),
-                                      manager=ui_manager,
-                                      container=self,
-                                      parent_element=self)
-
-    def process_event(self, event):
-        handled = super().process_event(event)
-
-        if event.type == pygame.USEREVENT:
-            if event.user_type == pygame_gui.UI_SELECTION_LIST_NEW_SELECTION:
-                if event.ui_element == self.ent_list:
-                    text = self.ent_list.get_single_selection()
-                    size = self.get_container().get_size()
-                    self.page_display = UITextBox(text,
-                                                  pygame.Rect(
-                                                      (self.ent_list.rect.width, 0),
-                                                      (size[0] - self.ent_list.rect.width, size[1])),
-                                                  manager=self.ui_manager,
-                                                  container=self,
-                                                  parent_element=self)
-                    handled = True
-
-        return handled
-'''
-
-
-class GeneralControl(gui.Table):
-    def __init__(self, **params):
-        gui.Table.__init__(self, **params)
-
-        self.grid_btn = gui.Button("Grid")
-        self.tr()
-        self.td(self.grid_btn, align=-1)
-
-        self.net_view_button = gui.Button("Net view")
-        self.td(self.net_view_button, align=-1)
-
-        self.info_view_button = gui.Button("Info view")
-        self.td(self.info_view_button, align=-1)
-
-
-class ChildWindow(gui.Container):
-    def __init__(self, **params):
-        gui.Container.__init__(self, **params)
-
-    def paint(self, surface):
-        surface.fill((30, 30, 30, 255))
-        super().paint(surface)
-
-
-class NetView(ChildWindow):
-    def __init__(self, **params):
-        ChildWindow.__init__(self, **params)
-
-
-class InfoView(ChildWindow):
-    def __init__(self, **params):
-        ChildWindow.__init__(self, **params)
-        self.ent_list = gui.List(width=100, height=100)
-        self.add(self.ent_list, 0, 0)
-
-        self.ent_list.add("item1", value=1)
-        self.ent_list.add("  item2", value=1)
-        self.ent_list.add("    item3", value=2)
-        self.ent_list.resize()
-        self.ent_list.repaint()
 
 
 class Viewer(basis.Entity):
@@ -555,6 +390,86 @@ class Viewer(basis.Entity):
 
         self.pgu_app.paint()
         pygame.display.update()
+'''
 
+class Viewer(basis.Entity):
+    def __init__(self):
+        super().__init__()
+        self.window = init_glfw()
+        imgui.create_context()
+        self.render_engine = GlfwRenderer(self.window)
+        self.win_width = 1024
+        self.win_height = 768
+
+    def draw_toolbar(self):
+        imgui.begin("Toolbar")
+
+        imgui.text("Some text")
+
+        imgui.end()
+
+    def draw_board(self):
+        imgui.begin("Board")
+
+        imgui.text("Some other text")
+
+        draw_list = imgui.get_window_draw_list()
+        draw_list.add_circle(100, 60, 30, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=1)
+        draw_list.add_rect(20, 35, 90, 80, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=3)
+
+        imgui.end()
+
+    def step(self):
+        glfw.poll_events()
+        glfw.set_window_title(self.window, "Cells")
+        glfw.set_window_size(self.window, self.win_width, self.win_height)
+
+        gl.glClearColor(0.1, 0.1, 0.1, 1.0)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+
+        self.render_engine.process_inputs()
+
+        imgui.new_frame()
+
+        self.draw_toolbar()
+        self.draw_board()
+
+        imgui.render()
+        self.render_engine.render(imgui.get_draw_data())
+        glfw.swap_buffers(self.window)
+
+
+def init_glfw():
+    # Initialize the GLFW library
+    if not glfw.init():
+        return
+
+    # OpenGL 3 or above is required
+    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+    # OpenGL context should be forward-compatible
+    glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, gl.GL_TRUE)
+
+    # Create a window in windowed mode and it's OpenGL context
+    primary = glfw.get_primary_monitor()  # for GLFWmonitor
+    window = glfw.create_window(
+        1024,  # width, is required here but overwritten by "glfw.set_window_size()" above
+        768,  # height, is required here but overwritten by "glfw.set_window_size()" above
+        "pyimgui-examples-glfw",  # window name, is overwritten by "glfw.set_window_title()" above
+        None,  # GLFWmonitor: None = windowed mode, 'primary' to choose fullscreen (resolution needs to be adjusted)
+        None  # GLFWwindow
+    )
+
+    # Exception handler if window wasn't created
+    if not window:
+        glfw.terminate()
+        return
+
+    # Makes window current on the calling thread
+    glfw.make_context_current(window)
+
+    # Passing window to main()
+    return window
 
 
