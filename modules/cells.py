@@ -6,6 +6,9 @@ import imgui
 from imgui.integrations.glfw import GlfwRenderer
 import glfw
 import OpenGL.GL as gl
+import glm
+from PIL import Image
+from numpy import asarray
 
 
 class Link:
@@ -186,12 +189,14 @@ class Agent(basis.Entity):
         if not self.board:
             return
 
+        '''
         front_sensor_color = self.board.get_cell_color(
             self.position[0] + self.orientation[0], self.position[1] + self.orientation[1])
         sensor_active = False
         if front_sensor_color != self.board.back_color and front_sensor_color != self.board.color_no_color:
             sensor_active = True
         self.net.layers[0].neurons[0].set_activity(sensor_active)
+        '''
 
         choice = random.choice(list(AgentAction))
         if choice == AgentAction.NoAction:
@@ -212,7 +217,7 @@ class Agent(basis.Entity):
             self.orientation[0] = -dir_y
             self.orientation[1] = dir_x
 
-'''
+
 class Board(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -220,8 +225,8 @@ class Board(basis.Entity):
         self.obstacles = list()
         self.size = 100
         self.cell_size = 3
-        self.visual_field = pygame.Surface((self.size_in_pixels(), self.size_in_pixels()))
-        self.compressed_visual_field = pygame.Surface((self.size, self.size))  # поле, сжатое до 1 пиксела на клетку
+        #self.visual_field = pygame.Surface((self.size_in_pixels(), self.size_in_pixels()))
+        #self.compressed_visual_field = pygame.Surface((self.size, self.size))  # поле, сжатое до 1 пиксела на клетку
         self.back_color = (10, 10, 10)
         self.color_no_color = (0, 0, 0)  # цвет для обозначения пространства за пределами поля и т.п.
 
@@ -249,32 +254,35 @@ class Board(basis.Entity):
             return self.color_no_color
         return self.compressed_visual_field.get_at((x, y))
 
-    def draw(self):
-        self.visual_field.fill(self.back_color)
+    def draw(self, renderer):
+        resource_manager = self.system.find_entity_by_name("ResourceManager")
+        renderer.draw_sprite(resource_manager.get_texture("background"), glm.vec2(0.0, 0.0),
+                             glm.vec2(self.size_in_pixels(), self.size_in_pixels()), 0.0, glm.vec3(1.0))
 
         for obstacle in self.obstacles:
             if isinstance(obstacle, Obstacle):
                 try:
-                    obst_pos = obstacle.position
-                    obst_rect = pygame.Rect(obst_pos[0] * self.cell_size, obst_pos[1] * self.cell_size,
-                                            self.cell_size, self.cell_size)
-                    pygame.draw.rect(self.visual_field, (50, 50, 50), obst_rect)
+                    renderer.draw_sprite(resource_manager.get_texture("obstacle"),
+                                         glm.vec2(obstacle.position[0] * self.cell_size,
+                                                  obstacle.position[1] * self.cell_size),
+                                         glm.vec2(self.cell_size, self.cell_size), 0.0, glm.vec3(1.0))
                 except AttributeError:
                     pass
 
         for agent in self.agents:
             if isinstance(agent, Agent):
                 try:
-                    agent_pos = agent.position
-                    agent_rect = pygame.Rect(agent_pos[0] * self.cell_size, agent_pos[1] * self.cell_size,
-                                             self.cell_size, self.cell_size)
-                    pygame.draw.rect(self.visual_field, (100, 0, 0), agent_rect)
+                    renderer.draw_sprite(resource_manager.get_texture("agent"),
+                                         glm.vec2(agent.position[0] * self.cell_size,
+                                                  agent.position[1] * self.cell_size),
+                                         glm.vec2(self.cell_size, self.cell_size), 0.0, glm.vec3(1.0))
                 except AttributeError:
                     pass
 
         # после всей отрисовки создаём вспомогательное сжатое представление доски:
-        pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
+        #pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
 
+'''
 
 class Viewer(basis.Entity):
     def __init__(self):
@@ -392,6 +400,215 @@ class Viewer(basis.Entity):
         pygame.display.update()
 '''
 
+class Shader:
+    def __init__(self):
+        self.shader_program = None
+
+    def compile(self, vertex_source, fragment_source, geometry_source=""):
+        vertex_shader = gl.glCreateShader(gl.GL_VERTEX_SHADER)
+        gl.glShaderSource(vertex_shader, vertex_source)
+        gl.glCompileShader(vertex_shader)
+        compile_status = gl.glGetShaderiv(vertex_shader, gl.GL_COMPILE_STATUS)
+        if not compile_status:
+            print("Vertex shader compilation failed")
+
+        fragment_shader = gl.glCreateShader(gl.GL_FRAGMENT_SHADER)
+        gl.glShaderSource(fragment_shader, fragment_source)
+        gl.glCompileShader(fragment_shader)
+        compile_status = gl.glGetShaderiv(fragment_shader, gl.GL_COMPILE_STATUS)
+        if not compile_status:
+            print("Fragment shader compilation failed")
+
+        geometry_shader = None
+        if geometry_source:
+            geometry_shader = gl.glCreateShader(gl.GL_GEOMETRY_SHADER)
+            gl.glShaderSource(geometry_shader, geometry_source)
+            gl.glCompileShader(geometry_shader)
+            compile_status = gl.glGetShaderiv(vertex_shader, gl.GL_COMPILE_STATUS)
+            if not compile_status:
+                print("Geometry shader compilation failed")
+
+        self.shader_program = gl.glCreateProgram()
+        gl.glAttachShader(self.shader_program, vertex_shader)
+        gl.glAttachShader(self.shader_program, fragment_shader)
+        if geometry_shader:
+            gl.glAttachShader(self.shader_program, geometry_shader)
+        gl.glLinkProgram(self.shader_program)
+        link_status = gl.glGetProgramiv(self.shader_program, gl.GL_LINK_STATUS)
+        if not link_status:
+            print("Shader linking failed")
+
+        gl.glDeleteShader(vertex_shader)
+        gl.glDeleteShader(fragment_shader)
+        if geometry_shader:
+            gl.glDeleteShader(geometry_shader)
+
+    def use(self):
+        gl.glUseProgram(self.shader_program)
+
+    def set_float(self, name, value, use_shader = False):
+        if use_shader:
+            self.use()
+        gl.glUniform1f(gl.glGetUniformLocation(self.shader_program, name), value)
+
+    def set_integer(self, name, value, use_shader = False):
+        if use_shader:
+            self.use()
+        gl.glUniform1i(gl.glGetUniformLocation(self.shader_program, name), value)
+
+    def set_vector2f(self, name, x, y, use_shader = False):
+        if use_shader:
+            self.use()
+        gl.glUniform2f(gl.glGetUniformLocation(self.shader_program, name), x, y)
+
+    def set_vector3f(self, name, vector, use_shader = False):
+        if use_shader:
+            self.use()
+        gl.glUniform3f(gl.glGetUniformLocation(self.shader_program, name), vector.x, vector.y, vector.z)
+
+    def set_vector4f(self, name, vector, use_shader = False):
+        if use_shader:
+            self.use()
+        gl.glUniform4f(gl.glGetUniformLocation(self.shader_program, name), vector.x, vector.y, vector.z, vector.w)
+
+    def set_matrix4(self, name, matrix, use_shader = False):
+        if use_shader:
+            self.use()
+        gl.glUniformMatrix4fv(gl.glGetUniformLocation(self.shader_program, name), 1, False, glm.value_ptr(matrix))
+
+
+class Texture:
+    def __init__(self):
+        self.width = 0
+        self.height = 0
+        self.id = gl.glGenTextures(1)
+        self.internal_format = gl.GL_RGB
+        self.image_format = gl.GL_RGB
+        self.wrap_s = gl.GL_REPEAT
+        self.wrap_t = gl.GL_REPEAT
+        self.filter_min = gl.GL_LINEAR
+        self.filter_max = gl.GL_LINEAR
+
+    def generate(self, width, height, data):
+        self.width = width
+        self.height = height
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.id)
+        gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.image_format,
+                        gl.GL_UNSIGNED_BYTE, data)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, self.wrap_s)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, self.wrap_t)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, self.filter_min)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, self.filter_max)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+
+    def bind(self):
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.id)
+
+
+class ResourceManager(basis.Entity):
+    def __init__(self):
+        super().__init__()
+        self.shaders = dict()
+        self.textures = dict()
+
+    def load_shader(self, shader_name, v_shader_file, f_shader_file, g_shader_file = None):
+        v_shader_code = ""
+        f_shader_code = ""
+        g_shader_code = ""
+
+        with open(v_shader_file) as f:
+            v_shader_code = f.read()
+        with open(f_shader_file) as f:
+            f_shader_code = f.read()
+        if g_shader_file:
+            with open(g_shader_file) as f:
+                g_shader_code = f.read()
+
+        shader = Shader()
+        shader.compile(v_shader_code, f_shader_code, g_shader_code)
+
+        self.shaders[shader_name] = shader
+        return self.shaders[shader_name]
+
+    def load_texture(self, texture_file, alpha, texture_name):
+        texture = Texture()
+        if alpha:
+            texture.internal_format = gl.GL_RGBA
+            texture.image_format = gl.GL_RGBA
+
+        image = Image.open(texture_file)
+        data = asarray(image)
+        texture.generate(data.shape[1], data.shape[0], data)  # Attention: in np.array height is the first param!
+
+        self.textures[texture_name] = texture
+
+        return texture
+
+    def get_shader(self, shader_name):
+        return self.shaders[shader_name]
+
+    def get_texture(self, texture_name):
+        return self.textures[texture_name]
+
+    def clear(self):
+        for k, v in self.shaders.items():
+            gl.glDeleteProgram(v.id)
+        for k, v in self.textures.items():
+            gl.glDeleteTextures(1, v.id)
+
+
+class SpriteRenderer:
+    def __init__(self, shader):
+        self.vao = None
+        self.shader = shader
+        self.init_render_data()
+
+    def init_render_data(self):
+        vertices = [
+            # 1st triangle
+            # pos     tex
+            0.0, 1.0, 0.0, 1.0,
+            1.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 0.0,
+            # 2nd triangle
+            # pos     tex
+            0.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 1.0, 1.0,
+            1.0, 0.0, 1.0, 0.0
+        ]
+
+        self.vao = gl.glGenVertexArrays(1)
+        vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, len(vertices) * 4, (gl.GLfloat * len(vertices))(*vertices),
+                        gl.GL_STATIC_DRAW)
+        gl.glBindVertexArray(self.vao)
+
+        gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None) # MAY BE WRONG!
+        gl.glEnableVertexAttribArray(0)
+
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+
+    def draw_sprite(self, texture, position, size, rotate, color):
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(position, 0.0))
+        model = glm.translate(model, glm.vec3(0.5 * size[0], 0.5 * size[1], 0.0))
+        model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        model = glm.translate(model, glm.vec3(-0.5 * size[0], -0.5 * size[1], 0.0))
+        model = glm.scale(model, glm.vec3(size, 1.0))
+
+        self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("spriteColor", color)
+
+        gl.glActiveTexture(gl.GL_TEXTURE0)
+        texture.bind()
+
+        gl.glBindVertexArray(self.vao)
+        gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
+        gl.glBindVertexArray(0)
+
+
 class Viewer(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -400,6 +617,18 @@ class Viewer(basis.Entity):
         self.render_engine = GlfwRenderer(self.window)
         self.win_width = 1024
         self.win_height = 768
+        resource_manager = self.system.find_entity_by_name("ResourceManager")
+        resource_manager.load_shader("sprite", "modules/sprite.vs", "modules/sprite.frag")
+        projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+        shader = resource_manager.get_shader("sprite")
+        shader.use()
+        shader.set_integer("image", 0)
+        shader.set_matrix4("projection", projection)
+        self.renderer = SpriteRenderer(shader)
+        self.board = self.system.find_entity_by_name("Board")
+        resource_manager.load_texture("modules/background.jpg", False, "background")
+        resource_manager.load_texture("modules/agent.png", True, "agent")
+        resource_manager.load_texture("modules/obstacle.png", False, "obstacle")
 
     def draw_toolbar(self):
         imgui.begin("Toolbar")
@@ -408,6 +637,7 @@ class Viewer(basis.Entity):
 
         imgui.end()
 
+    '''
     def draw_board(self):
         imgui.begin("Board")
 
@@ -418,6 +648,7 @@ class Viewer(basis.Entity):
         draw_list.add_rect(20, 35, 90, 80, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=3)
 
         imgui.end()
+    '''
 
     def step(self):
         glfw.poll_events()
@@ -432,7 +663,9 @@ class Viewer(basis.Entity):
         imgui.new_frame()
 
         self.draw_toolbar()
-        self.draw_board()
+        if self.board:
+            self.board.draw(self.renderer)
+        #self.draw_board()
 
         imgui.render()
         self.render_engine.render(imgui.get_draw_data())
