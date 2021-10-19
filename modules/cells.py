@@ -644,8 +644,8 @@ class Viewer(basis.Entity):
         imgui.text("Some other text")
 
         draw_list = imgui.get_window_draw_list()
-        draw_list.add_circle(100, 60, 30, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=1)
-        draw_list.add_rect(20, 35, 90, 80, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=3)
+        wx, wy = imgui.get_window_position()
+        draw_list.add_circle(wx + 100, wy + 60, 30, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=1)
 
         imgui.end()
     '''
