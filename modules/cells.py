@@ -254,18 +254,25 @@ class Board(basis.Entity):
             return self.color_no_color
         return self.compressed_visual_field.get_at((x, y))
 
-    def draw(self, renderer):
+    def draw(self, renderer, pos, size):
+        x0 = pos[0]
+        y0 = pos[1]
+        width = size[0]
+        height = size[1]
+        cell_width = width / self.size
+        cell_height = height / self.size
+
         resource_manager = self.system.find_entity_by_name("ResourceManager")
-        renderer.draw_sprite(resource_manager.get_texture("background"), glm.vec2(0.0, 0.0),
-                             glm.vec2(self.size_in_pixels(), self.size_in_pixels()), 0.0, glm.vec3(1.0))
+        renderer.draw_sprite(resource_manager.get_texture("background"), glm.vec2(x0, y0),
+                             glm.vec2(width, height), 0.0, glm.vec3(1.0))
 
         for obstacle in self.obstacles:
             if isinstance(obstacle, Obstacle):
                 try:
                     renderer.draw_sprite(resource_manager.get_texture("obstacle"),
-                                         glm.vec2(obstacle.position[0] * self.cell_size,
-                                                  obstacle.position[1] * self.cell_size),
-                                         glm.vec2(self.cell_size, self.cell_size), 0.0, glm.vec3(1.0))
+                                         glm.vec2(x0 + obstacle.position[0] * cell_width,
+                                                  y0 + obstacle.position[1] * cell_height),
+                                         glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
                 except AttributeError:
                     pass
 
@@ -273,9 +280,9 @@ class Board(basis.Entity):
             if isinstance(agent, Agent):
                 try:
                     renderer.draw_sprite(resource_manager.get_texture("agent"),
-                                         glm.vec2(agent.position[0] * self.cell_size,
-                                                  agent.position[1] * self.cell_size),
-                                         glm.vec2(self.cell_size, self.cell_size), 0.0, glm.vec3(1.0))
+                                         glm.vec2(x0 + agent.position[0] * cell_width,
+                                                  y0 + agent.position[1] * cell_height),
+                                         glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
                 except AttributeError:
                     pass
 
@@ -626,9 +633,9 @@ class Viewer(basis.Entity):
         shader.set_matrix4("projection", projection)
         self.renderer = SpriteRenderer(shader)
         self.board = self.system.find_entity_by_name("Board")
-        resource_manager.load_texture("modules/background.jpg", False, "background")
+        resource_manager.load_texture("modules/background.png", False, "background")
         resource_manager.load_texture("modules/agent.png", True, "agent")
-        resource_manager.load_texture("modules/obstacle.png", False, "obstacle")
+        resource_manager.load_texture("modules/obstacle.png", True, "obstacle")
 
     def draw_toolbar(self):
         imgui.begin("Toolbar")
@@ -664,7 +671,13 @@ class Viewer(basis.Entity):
 
         self.draw_toolbar()
         if self.board:
-            self.board.draw(self.renderer)
+            board_image_size = min(self.win_width, self.win_height)
+            board_pos_x = (self.win_width - board_image_size) / 2.0
+            board_pos_y = (self.win_height - board_image_size) / 2.0
+            self.board.draw(self.renderer,
+                            (board_pos_x, board_pos_y),
+                            (board_image_size, board_image_size)
+                            )
         #self.draw_board()
 
         imgui.render()
