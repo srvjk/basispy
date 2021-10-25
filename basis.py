@@ -117,6 +117,7 @@ class System(Entity):
         super().__init__()
         self.recent_errors = deque(maxlen=10)
         self.step_counter = 0
+        self.should_stop = False
 
     def load(self, module_name, dir_path='.'):
         module_full_path = dir_path + '/' + module_name
@@ -148,9 +149,17 @@ class System(Entity):
 
     def operate(self):
         self.step_counter = 0
-        while True:
+        self.should_stop = False
+
+        while not self.should_stop:
             self.step_counter += 1
             self.step()
+
+        print("System finished operation")
+
+    def shutdown(self):
+        print("System shutdown request")
+        self.should_stop = True
 
     def report_error(self, error_description):
         self.recent_errors.append(error_description)

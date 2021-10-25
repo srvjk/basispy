@@ -493,7 +493,7 @@ class Texture:
         self.image_format = gl.GL_RGB
         self.wrap_s = gl.GL_REPEAT
         self.wrap_t = gl.GL_REPEAT
-        self.filter_min = gl.GL_LINEAR
+        self.filter_min = gl.GL_NEAREST_MIPMAP_LINEAR #.GL_LINEAR
         self.filter_max = gl.GL_LINEAR
 
     def generate(self, width, height, data):
@@ -504,6 +504,7 @@ class Texture:
                         gl.GL_UNSIGNED_BYTE, data)
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, self.wrap_s)
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, self.wrap_t)
+        gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, self.filter_min)
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, self.filter_max)
         gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
@@ -617,31 +618,41 @@ class SpriteRenderer:
 
 
 class Viewer(basis.Entity):
+    initial_win_size = (initial_win_width, initial_win_height) = (1024, 768)
+
     def __init__(self):
         super().__init__()
         self.window = init_glfw()
         imgui.create_context()
         self.render_engine = GlfwRenderer(self.window)
-        self.win_width = 1024
-        self.win_height = 768
+        glfw.set_window_size_callback(self.window, self.window_size_callback)
+
+        self.win_width = Viewer.initial_win_width
+        self.win_height = Viewer.initial_win_height
         resource_manager = self.system.find_entity_by_name("ResourceManager")
         resource_manager.load_shader("sprite", "modules/sprite.vs", "modules/sprite.frag")
+
+        self.renderer = None
+        self.on_window_resize()
+
+        self.board = self.system.find_entity_by_name("Board")
+        resource_manager.load_texture("modules/background.png", False, "background")
+        resource_manager.load_texture("modules/agent.png", True, "agent")
+        resource_manager.load_texture("modules/obstacle2.png", True, "obstacle")
+
+    def on_window_resize(self):
+        gl.glViewport(0, 0, self.win_width, self.win_height)
         projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+        resource_manager = self.system.find_entity_by_name("ResourceManager")
         shader = resource_manager.get_shader("sprite")
         shader.use()
         shader.set_integer("image", 0)
         shader.set_matrix4("projection", projection)
         self.renderer = SpriteRenderer(shader)
-        self.board = self.system.find_entity_by_name("Board")
-        resource_manager.load_texture("modules/background.png", False, "background")
-        resource_manager.load_texture("modules/agent.png", True, "agent")
-        resource_manager.load_texture("modules/obstacle.png", True, "obstacle")
 
     def draw_toolbar(self):
         imgui.begin("Toolbar")
-
         imgui.text("Some text")
-
         imgui.end()
 
     '''
@@ -657,10 +668,18 @@ class Viewer(basis.Entity):
         imgui.end()
     '''
 
+    def window_size_callback(self, window, width, height):
+        self.win_width = width
+        self.win_height = height
+        self.on_window_resize()
+
     def step(self):
         glfw.poll_events()
         glfw.set_window_title(self.window, "Cells")
         glfw.set_window_size(self.window, self.win_width, self.win_height)
+
+        if glfw.window_should_close(self.window):
+            self.system.shutdown()
 
         gl.glClearColor(0.1, 0.1, 0.1, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -694,14 +713,15 @@ def init_glfw():
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
     glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+    glfw.window_hint(glfw.RESIZABLE, True)
     # OpenGL context should be forward-compatible
     glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, gl.GL_TRUE)
 
     # Create a window in windowed mode and it's OpenGL context
     primary = glfw.get_primary_monitor()  # for GLFWmonitor
     window = glfw.create_window(
-        1024,  # width, is required here but overwritten by "glfw.set_window_size()" above
-        768,  # height, is required here but overwritten by "glfw.set_window_size()" above
+        Viewer.initial_win_width,  # width, is required here but overwritten by "glfw.set_window_size()" above
+        Viewer.initial_win_height,  # height, is required here but overwritten by "glfw.set_window_size()" above
         "pyimgui-examples-glfw",  # window name, is overwritten by "glfw.set_window_title()" above
         None,  # GLFWmonitor: None = windowed mode, 'primary' to choose fullscreen (resolution needs to be adjusted)
         None  # GLFWwindow
