@@ -147,22 +147,15 @@ class AgentAction(Enum):
 class Obstacle(basis.Entity):
     def __init__(self):
         super().__init__()
-        self._position = [0, 0]
-
-    @property
-    def position(self):
-        return self._position
-
-    def set_position(self, x, y):
-        self._position = [x, y]
+        self.position = glm.vec2(0, 0)
 
 
 class Agent(basis.Entity):
     def __init__(self):
         super().__init__()
         self.board = None
-        self._position = [0, 0]
-        self._orientation = [1, 0]
+        self.position = glm.vec2(0, 0)
+        self.orientation = glm.vec2(1, 0)
 
         # neural net
         self.net = self.new(Net)
@@ -176,14 +169,6 @@ class Agent(basis.Entity):
     def set_board(self, board):
         self.board = board
         self.board.add_agent(self)
-
-    @property
-    def position(self):
-        return self._position
-
-    @property
-    def orientation(self):
-        return self._orientation
 
     def step(self):
         if not self.board:
@@ -202,21 +187,19 @@ class Agent(basis.Entity):
         if choice == AgentAction.NoAction:
             pass
         if choice == AgentAction.MoveForward:
-            self.position[0] += self.orientation[0]
-            self.position[1] += self.orientation[1]
-            self.position[0] = max(0, self.position[0])
-            self.position[0] = min(self.position[0], self.board.size - 1)
-            self.position[1] = max(0, self.position[1])
-            self.position[1] = min(self.position[1], self.board.size - 1)
+            self.position += self.orientation
+            self.position.x = max(0, self.position.x)
+            self.position.x = min(self.position.x, self.board.size - 1)
+            self.position.y = max(0, self.position.y)
+            self.position.y = min(self.position.y, self.board.size - 1)
         if choice == AgentAction.TurnLeft:
-            dir_x, dir_y = self._orientation
-            self.orientation[0] = dir_y
-            self.orientation[1] = -dir_x
+            self.orientation = glm.rotate(self.orientation, glm.pi() / 2.0)
         if choice == AgentAction.TurnRight:
-            dir_x, dir_y = self._orientation
-            self.orientation[0] = -dir_y
-            self.orientation[1] = dir_x
+            self.orientation = glm.rotate(self.orientation, -glm.pi() / 2.0)
 
+def angle(vec1, vec2):
+    """ Вычислить угол (в радианах) между двумя векторами """
+    return glm.acos(glm.dot(vec1, vec2) / (glm.length(vec1) * glm.length(vec2)))
 
 class Board(basis.Entity):
     def __init__(self):
@@ -246,7 +229,7 @@ class Board(basis.Entity):
             x = random.randrange(0, self.size)
             y = random.randrange(0, self.size)
             obstacle = Obstacle()
-            obstacle.set_position(x, y)
+            obstacle.position = glm.vec2(x, y)
             self.obstacles.append(obstacle)
 
     def get_cell_color(self, x, y):
@@ -270,8 +253,8 @@ class Board(basis.Entity):
             if isinstance(obstacle, Obstacle):
                 try:
                     renderer.draw_sprite(resource_manager.get_texture("obstacle"),
-                                         glm.vec2(x0 + obstacle.position[0] * cell_width,
-                                                  y0 + obstacle.position[1] * cell_height),
+                                         glm.vec2(x0 + obstacle.position.x * cell_width,
+                                                  y0 + obstacle.position.y * cell_height),
                                          glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
                 except AttributeError:
                     pass
@@ -279,10 +262,11 @@ class Board(basis.Entity):
         for agent in self.agents:
             if isinstance(agent, Agent):
                 try:
+                    ang = angle(agent.orientation, glm.vec2(1, 0))
                     renderer.draw_sprite(resource_manager.get_texture("agent"),
-                                         glm.vec2(x0 + agent.position[0] * cell_width,
-                                                  y0 + agent.position[1] * cell_height),
-                                         glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
+                                         glm.vec2(x0 + agent.position.x * cell_width,
+                                                  y0 + agent.position.y * cell_height),
+                                         glm.vec2(cell_width, cell_height), glm.degrees(ang), glm.vec3(1.0))
                 except AttributeError:
                     pass
 
