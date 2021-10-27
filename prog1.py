@@ -16,7 +16,11 @@ agent = cells.Agent()
 
 #system.printEntities()
 
-# оживляем нужные сущности
+# активируем нужные сущности
+if viewer:
+    system.activate(viewer)
 if agent:
-    system.animate(agent)
+    system.activate(agent)
 
+# запускаем систему
+system.operate()

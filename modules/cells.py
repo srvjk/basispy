@@ -1,17 +1,16 @@
+import basis
 
-class Board:
+
+class Board(basis.Entity):
     def __init__(self):
-        pass
+        super().__init__()
 
 
-class Viewer:
-    def __init__(self):
-        pass
+class Viewer(basis.Entity):
+    def step(self):
+        print("-> viewer")
 
 
 class Agent:
-    def __init__(self):
-        pass
-
     def step(self):
         pass
