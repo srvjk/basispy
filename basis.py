@@ -59,6 +59,17 @@ class Entity:
     def find_entity_by_name(self, name):
         return self.entity_name_index.get(name)
 
+    def find_entities_by_type_recursively(self, type_name):
+        """ Найти рекурсивно все сущности заданного типа или его производных """
+        result = list()
+        for ent in self.entities:
+            if isinstance(ent, type_name):
+                result.append(ent)
+            tmp_res = ent.find_entities_by_type_recursively(type_name)
+            if tmp_res:
+                result.extend(tmp_res)
+        return result
+
     def on_entity_renamed(self, entity, old_name, new_name) -> bool:
         if entity not in self.entities:
             return False  # no such entity at all
@@ -106,6 +117,7 @@ class System(Entity):
         super().__init__()
         self.recent_errors = deque(maxlen=10)
         self.step_counter = 0
+        self.should_stop = False
 
     def load(self, module_name, dir_path='.'):
         module_full_path = dir_path + '/' + module_name
@@ -137,9 +149,17 @@ class System(Entity):
 
     def operate(self):
         self.step_counter = 0
-        while True:
+        self.should_stop = False
+
+        while not self.should_stop:
             self.step_counter += 1
             self.step()
+
+        print("System finished operation")
+
+    def shutdown(self):
+        print("System shutdown request")
+        self.should_stop = True
 
     def report_error(self, error_description):
         self.recent_errors.append(error_description)
