@@ -197,9 +197,11 @@ class Agent(basis.Entity):
         if choice == AgentAction.TurnRight:
             self.orientation = glm.rotate(self.orientation, -glm.pi() / 2.0)
 
+
 def angle(vec1, vec2):
     """ Вычислить угол (в радианах) между двумя векторами """
     return glm.acos(glm.dot(vec1, vec2) / (glm.length(vec1) * glm.length(vec2)))
+
 
 class Board(basis.Entity):
     def __init__(self):
@@ -246,29 +248,39 @@ class Board(basis.Entity):
         cell_height = height / self.size
 
         resource_manager = self.system.find_entity_by_name("ResourceManager")
-        renderer.draw_sprite(resource_manager.get_texture("background"), glm.vec2(x0, y0),
-                             glm.vec2(width, height), 0.0, glm.vec3(1.0))
+        # renderer.draw_sprite(resource_manager.get_texture("background"), glm.vec2(x0, y0),
+        #                      glm.vec2(width, height), 0.0, glm.vec3(1.0))
+        #
+        # for obstacle in self.obstacles:
+        #     if isinstance(obstacle, Obstacle):
+        #         try:
+        #             renderer.draw_sprite(resource_manager.get_texture("obstacle"),
+        #                                  glm.vec2(x0 + obstacle.position.x * cell_width,
+        #                                           y0 + obstacle.position.y * cell_height),
+        #                                  glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
+        #         except AttributeError:
+        #             pass
+        #
+        # for agent in self.agents:
+        #     if isinstance(agent, Agent):
+        #         try:
+        #             ang = angle(agent.orientation, glm.vec2(1, 0))
+        #             renderer.draw_sprite(resource_manager.get_texture("agent"),
+        #                                  glm.vec2(x0 + agent.position.x * cell_width,
+        #                                           y0 + agent.position.y * cell_height),
+        #                                  glm.vec2(cell_width, cell_height), glm.degrees(ang), glm.vec3(1.0))
+        #         except AttributeError:
+        #             pass
 
-        for obstacle in self.obstacles:
-            if isinstance(obstacle, Obstacle):
-                try:
-                    renderer.draw_sprite(resource_manager.get_texture("obstacle"),
-                                         glm.vec2(x0 + obstacle.position.x * cell_width,
-                                                  y0 + obstacle.position.y * cell_height),
-                                         glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
-                except AttributeError:
-                    pass
-
-        for agent in self.agents:
-            if isinstance(agent, Agent):
-                try:
-                    ang = angle(agent.orientation, glm.vec2(1, 0))
-                    renderer.draw_sprite(resource_manager.get_texture("agent"),
-                                         glm.vec2(x0 + agent.position.x * cell_width,
-                                                  y0 + agent.position.y * cell_height),
-                                         glm.vec2(cell_width, cell_height), glm.degrees(ang), glm.vec3(1.0))
-                except AttributeError:
-                    pass
+        polygon = Polygon(resource_manager.get_shader("polygon"))
+        polygon.set_points([
+            glm.vec2(0.1, 0.1),
+            glm.vec2(0.2, 0.1),
+            glm.vec2(0.2, 0.2),
+            glm.vec2(0.1, 0.2),
+            glm.vec2(0.1, 0.1)
+        ])
+        polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(1.0, 0.0, 0.0))
 
         # после всей отрисовки создаём вспомогательное сжатое представление доски:
         #pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
@@ -391,6 +403,7 @@ class Viewer(basis.Entity):
         pygame.display.update()
 '''
 
+
 class Shader:
     def __init__(self):
         self.shader_program = None
@@ -437,32 +450,32 @@ class Shader:
     def use(self):
         gl.glUseProgram(self.shader_program)
 
-    def set_float(self, name, value, use_shader = False):
+    def set_float(self, name, value, use_shader=False):
         if use_shader:
             self.use()
         gl.glUniform1f(gl.glGetUniformLocation(self.shader_program, name), value)
 
-    def set_integer(self, name, value, use_shader = False):
+    def set_integer(self, name, value, use_shader=False):
         if use_shader:
             self.use()
         gl.glUniform1i(gl.glGetUniformLocation(self.shader_program, name), value)
 
-    def set_vector2f(self, name, x, y, use_shader = False):
+    def set_vector2f(self, name, x, y, use_shader=False):
         if use_shader:
             self.use()
         gl.glUniform2f(gl.glGetUniformLocation(self.shader_program, name), x, y)
 
-    def set_vector3f(self, name, vector, use_shader = False):
+    def set_vector3f(self, name, vector, use_shader=False):
         if use_shader:
             self.use()
         gl.glUniform3f(gl.glGetUniformLocation(self.shader_program, name), vector.x, vector.y, vector.z)
 
-    def set_vector4f(self, name, vector, use_shader = False):
+    def set_vector4f(self, name, vector, use_shader=False):
         if use_shader:
             self.use()
         gl.glUniform4f(gl.glGetUniformLocation(self.shader_program, name), vector.x, vector.y, vector.z, vector.w)
 
-    def set_matrix4(self, name, matrix, use_shader = False):
+    def set_matrix4(self, name, matrix, use_shader=False):
         if use_shader:
             self.use()
         gl.glUniformMatrix4fv(gl.glGetUniformLocation(self.shader_program, name), 1, False, glm.value_ptr(matrix))
@@ -576,7 +589,7 @@ class SpriteRenderer:
                         gl.GL_STATIC_DRAW)
         gl.glBindVertexArray(self.vao)
 
-        gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None) # MAY BE WRONG!
+        gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None)
         gl.glEnableVertexAttribArray(0)
 
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
@@ -590,6 +603,7 @@ class SpriteRenderer:
         model = glm.translate(model, glm.vec3(-0.5 * size[0], -0.5 * size[1], 0.0))
         model = glm.scale(model, glm.vec3(size, 1.0))
 
+        self.shader.use()
         self.shader.set_matrix4("model", model)
         self.shader.set_vector3f("spriteColor", color)
 
@@ -598,6 +612,53 @@ class SpriteRenderer:
 
         gl.glBindVertexArray(self.vao)
         gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
+        gl.glBindVertexArray(0)
+
+
+class Polygon:
+    def __init__(self, shader):
+        self.vao = None
+        self.shader = shader
+        self.vertices = list()
+        self.vertex_count = 0
+
+    def set_points(self, points):
+        """points must be an array of glm.vec2 objects"""
+        self.vertex_count = len(points)
+        self.vertices.clear()
+        for p in points:
+            self.vertices.append(p.x)
+            self.vertices.append(p.y)
+
+        self.vao = gl.glGenVertexArrays(1)
+        vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, len(self.vertices) * 4, (gl.GLfloat * len(self.vertices))(*self.vertices),
+                        gl.GL_STATIC_DRAW)
+        gl.glBindVertexArray(self.vao)
+
+        gl.glVertexAttribPointer(0, 2, gl.GL_FLOAT, gl.GL_FALSE, 8, None)
+        gl.glEnableVertexAttribArray(0)
+
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+
+    def draw(self, position, size, rotate, color):
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(position, 0.0))
+        model = glm.translate(model, glm.vec3(0.5 * size[0], 0.5 * size[1], 0.0))
+        model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        model = glm.translate(model, glm.vec3(-0.5 * size[0], -0.5 * size[1], 0.0))
+        model = glm.scale(model, glm.vec3(size, 1.0))
+
+        self.shader.use()
+        self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("polygonColor", color)
+
+        gl.glBindVertexArray(self.vao)
+        gl.glDrawArrays(gl.GL_TRIANGLE_STRIP , 0, self.vertex_count)
+        #gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
+        #gl.glDrawArrays(gl.GL_POINTS, 0, self.vertex_count)
         gl.glBindVertexArray(0)
 
 
@@ -614,7 +675,8 @@ class Viewer(basis.Entity):
         self.win_width = Viewer.initial_win_width
         self.win_height = Viewer.initial_win_height
         resource_manager = self.system.find_entity_by_name("ResourceManager")
-        resource_manager.load_shader("sprite", "modules/sprite.vs", "modules/sprite.frag")
+        resource_manager.load_shader("sprite", "modules/sprite.vs", "modules/sprite.fs")
+        resource_manager.load_shader("polygon", "modules/polygon.vs", "modules/polygon.fs")
 
         self.renderer = None
         self.on_window_resize()
@@ -628,11 +690,16 @@ class Viewer(basis.Entity):
         gl.glViewport(0, 0, self.win_width, self.win_height)
         projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
         resource_manager = self.system.find_entity_by_name("ResourceManager")
-        shader = resource_manager.get_shader("sprite")
-        shader.use()
-        shader.set_integer("image", 0)
-        shader.set_matrix4("projection", projection)
-        self.renderer = SpriteRenderer(shader)
+
+        sprite_shader = resource_manager.get_shader("sprite")
+        sprite_shader.use()
+        sprite_shader.set_integer("image", 0)
+        sprite_shader.set_matrix4("projection", projection)
+        self.renderer = SpriteRenderer(sprite_shader)
+
+        poly_shader = resource_manager.get_shader("polygon")
+        poly_shader.use()
+        poly_shader.set_matrix4("projection", projection)
 
     def draw_toolbar(self):
         imgui.begin("Toolbar")
