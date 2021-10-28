@@ -248,39 +248,37 @@ class Board(basis.Entity):
         cell_height = height / self.size
 
         resource_manager = self.system.find_entity_by_name("ResourceManager")
-        # renderer.draw_sprite(resource_manager.get_texture("background"), glm.vec2(x0, y0),
-        #                      glm.vec2(width, height), 0.0, glm.vec3(1.0))
-        #
-        # for obstacle in self.obstacles:
-        #     if isinstance(obstacle, Obstacle):
-        #         try:
-        #             renderer.draw_sprite(resource_manager.get_texture("obstacle"),
-        #                                  glm.vec2(x0 + obstacle.position.x * cell_width,
-        #                                           y0 + obstacle.position.y * cell_height),
-        #                                  glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
-        #         except AttributeError:
-        #             pass
-        #
-        # for agent in self.agents:
-        #     if isinstance(agent, Agent):
-        #         try:
-        #             ang = angle(agent.orientation, glm.vec2(1, 0))
-        #             renderer.draw_sprite(resource_manager.get_texture("agent"),
-        #                                  glm.vec2(x0 + agent.position.x * cell_width,
-        #                                           y0 + agent.position.y * cell_height),
-        #                                  glm.vec2(cell_width, cell_height), glm.degrees(ang), glm.vec3(1.0))
-        #         except AttributeError:
-        #             pass
 
         polygon = Polygon(resource_manager.get_shader("polygon"))
         polygon.set_points([
-            glm.vec2(0.1, 0.1),
-            glm.vec2(0.2, 0.1),
-            glm.vec2(0.2, 0.2),
-            glm.vec2(0.1, 0.2),
-            glm.vec2(0.1, 0.1)
+            glm.vec2(0.0, 0.0),
+            glm.vec2(1.0, 0.0),
+            glm.vec2(1.0, 1.0),
+            glm.vec2(0.0, 1.0),
+            glm.vec2(0.0, 0.0)
         ])
-        polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(1.0, 0.0, 0.0))
+        polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1))
+
+        for obstacle in self.obstacles:
+            if isinstance(obstacle, Obstacle):
+                try:
+                    renderer.draw_sprite(resource_manager.get_texture("obstacle"),
+                                         glm.vec2(x0 + obstacle.position.x * cell_width,
+                                                  y0 + obstacle.position.y * cell_height),
+                                         glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
+                except AttributeError:
+                    pass
+
+        for agent in self.agents:
+            if isinstance(agent, Agent):
+                try:
+                    ang = angle(agent.orientation, glm.vec2(1, 0))
+                    renderer.draw_sprite(resource_manager.get_texture("agent"),
+                                         glm.vec2(x0 + agent.position.x * cell_width,
+                                                  y0 + agent.position.y * cell_height),
+                                         glm.vec2(cell_width, cell_height), glm.degrees(ang), glm.vec3(1.0))
+                except AttributeError:
+                    pass
 
         # после всей отрисовки создаём вспомогательное сжатое представление доски:
         #pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
@@ -681,10 +679,14 @@ class Viewer(basis.Entity):
         self.renderer = None
         self.on_window_resize()
 
+        # alpha blending (for transparency, semi-transparency, etc.)
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+
         self.board = self.system.find_entity_by_name("Board")
         resource_manager.load_texture("modules/background.png", False, "background")
         resource_manager.load_texture("modules/agent.png", True, "agent")
-        resource_manager.load_texture("modules/obstacle2.png", True, "obstacle")
+        resource_manager.load_texture("modules/obstacle.png", True, "obstacle")
 
     def on_window_resize(self):
         gl.glViewport(0, 0, self.win_width, self.win_height)
@@ -732,7 +734,7 @@ class Viewer(basis.Entity):
         if glfw.window_should_close(self.window):
             self.system.shutdown()
 
-        gl.glClearColor(0.1, 0.1, 0.1, 1.0)
+        gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
         self.render_engine.process_inputs()
