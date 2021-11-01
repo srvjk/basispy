@@ -199,8 +199,27 @@ class Agent(basis.Entity):
 
 
 def angle(vec1, vec2):
-    """ Вычислить угол (в радианах) между двумя векторами """
-    return glm.acos(glm.dot(vec1, vec2) / (glm.length(vec1) * glm.length(vec2)))
+    """
+    Вычислить ориентированный угол (в радианах) между двумя векторами.
+    Положительное направление вращения - против часовой стрелки от vec1 к vec2.
+    """
+    sign = 1.0
+    len_1_len_2 = glm.length(vec1) * glm.length(vec2)
+    dot = glm.dot(vec1, vec2)
+
+    if abs(dot) < glm.epsilon():
+        pseudo_dot = vec1.x * vec2.y - vec2.x * vec1.y
+        sin_alpha = pseudo_dot / len_1_len_2
+        if sin_alpha < 0:
+            sign = -1.0
+
+    ang = glm.acos(dot / len_1_len_2)
+    double_pi = glm.pi() * 2.0
+    n = glm.floor(ang / double_pi)
+    if n > 0:
+        ang -= n * double_pi
+
+    return sign * ang
 
 
 class Board(basis.Entity):
@@ -257,7 +276,7 @@ class Board(basis.Entity):
             glm.vec2(0.0, 1.0),
             glm.vec2(0.0, 0.0)
         ])
-        polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1))
+        polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1), True)
 
         for obstacle in self.obstacles:
             if isinstance(obstacle, Obstacle):
@@ -272,7 +291,7 @@ class Board(basis.Entity):
         for agent in self.agents:
             if isinstance(agent, Agent):
                 try:
-                    ang = angle(agent.orientation, glm.vec2(1, 0))
+                    ang = angle(glm.vec2(1, 0), agent.orientation)
                     renderer.draw_sprite(resource_manager.get_texture("agent"),
                                          glm.vec2(x0 + agent.position.x * cell_width,
                                                   y0 + agent.position.y * cell_height),
@@ -282,6 +301,22 @@ class Board(basis.Entity):
 
         # после всей отрисовки создаём вспомогательное сжатое представление доски:
         #pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
+
+        for agent in self.agents:
+            if isinstance(agent, Agent):
+                agent_center = glm.vec2(x0 + agent.position.x * cell_width + 0.5 * cell_width,
+                                        y0 + agent.position.y * cell_height + 0.5 * cell_height)
+                polygon = Polygon(resource_manager.get_shader("polygon"))
+                polygon.set_points([
+                    glm.vec2(0.0, 0.0),
+                    agent.orientation
+                ])
+                polygon.draw(agent_center, glm.vec2(cell_width, cell_width), 0.0, glm.vec3(1.0, 1.0, 0.5), False)
+                # polygon.set_points([
+                #     glm.vec2(0.0, 0.0),
+                #     glm.vec2(1.0, 1.0)
+                # ])
+                # polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.5, 0.5, 0.5), False)
 
 '''
 
@@ -641,7 +676,7 @@ class Polygon:
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
         gl.glBindVertexArray(0)
 
-    def draw(self, position, size, rotate, color):
+    def draw(self, position, size, rotate, color, filled):
         model = glm.mat4(1.0)
         model = glm.translate(model, glm.vec3(position, 0.0))
         model = glm.translate(model, glm.vec3(0.5 * size[0], 0.5 * size[1], 0.0))
@@ -654,8 +689,10 @@ class Polygon:
         self.shader.set_vector3f("polygonColor", color)
 
         gl.glBindVertexArray(self.vao)
-        gl.glDrawArrays(gl.GL_TRIANGLE_STRIP , 0, self.vertex_count)
-        #gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
+        if filled:
+            gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, self.vertex_count)
+        else:
+            gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
         #gl.glDrawArrays(gl.GL_POINTS, 0, self.vertex_count)
         gl.glBindVertexArray(0)
 
@@ -790,5 +827,21 @@ def init_glfw():
 
     # Passing window to main()
     return window
+
+
+def unit_test():
+    a1 = angle(glm.vec2(1.0, 0.0), glm.vec2(0.0, 1.0))
+    a2 = angle(glm.vec2(1.0, 0.0), glm.vec2(-1.0, 0.0))
+    a3 = angle(glm.vec2(1.0, 0.0), glm.vec2(0.0, -1.0))
+
+    return True
+
+
+if __name__ == "__main__":
+    res = unit_test()
+    if res:
+        print("cells.py: test ok")
+    else:
+        print("cells.py: test FAILED")
 
 
