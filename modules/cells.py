@@ -207,7 +207,8 @@ def angle(vec1, vec2):
     len_1_len_2 = glm.length(vec1) * glm.length(vec2)
     dot = glm.dot(vec1, vec2)
 
-    if abs(dot) < glm.epsilon():
+    epsilon = 1e-6
+    if abs(dot) < epsilon:
         pseudo_dot = vec1.x * vec2.y - vec2.x * vec1.y
         sin_alpha = pseudo_dot / len_1_len_2
         if sin_alpha < 0:
@@ -292,6 +293,7 @@ class Board(basis.Entity):
             if isinstance(agent, Agent):
                 try:
                     ang = angle(glm.vec2(1, 0), agent.orientation)
+                    print("angle: {}".format(glm.degrees(ang)))
                     renderer.draw_sprite(resource_manager.get_texture("agent"),
                                          glm.vec2(x0 + agent.position.x * cell_width,
                                                   y0 + agent.position.y * cell_height),
@@ -740,8 +742,8 @@ class Viewer(basis.Entity):
         poly_shader.use()
         poly_shader.set_matrix4("projection", projection)
 
-    def draw_toolbar(self):
-        imgui.begin("Toolbar")
+    def draw_info_window(self):
+        imgui.begin("Info")
         imgui.text("Some text")
         imgui.end()
 
@@ -778,7 +780,8 @@ class Viewer(basis.Entity):
 
         imgui.new_frame()
 
-        self.draw_toolbar()
+        self.draw_info_window()
+
         if self.board:
             board_image_size = min(self.win_width, self.win_height)
             board_pos_x = (self.win_width - board_image_size) / 2.0

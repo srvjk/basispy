@@ -28,7 +28,7 @@ if viewer:
     system.activate(viewer)
 
 if agent:
-    agent.set_step_divider(10)
+    agent.set_step_divider(50)
     system.activate(agent)
 
 system.print_entities()
