@@ -5,7 +5,7 @@ import sys
 system = basis.System()
 
 # загружаем нужные модули
-cells = system.load('cells.py', 'modules')
+cells = system.load('cells.py', '.')
 if not cells:
     sys.exit('could not load module "cells"')
 
@@ -15,17 +15,18 @@ system.new(cells.ResourceManager, "ResourceManager")
 board = system.new(cells.Board, "Board")
 board.create_obstacles(density=0.1)
 
-viewer = system.new(cells.Viewer)
-#viewer.set_board(board)
-
 agent = board.new(cells.Agent)
 agent.set_board(board)
 
 #system.printEntities()
 
-# активируем нужные сущности
+viewer = system.new(cells.Viewer)
 if viewer:
     system.activate(viewer)
+
+net_viewer = system.new(cells.NetViewer)
+if net_viewer:
+    system.activate(net_viewer)
 
 if agent:
     agent.set_step_divider(50)

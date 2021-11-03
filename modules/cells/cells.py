@@ -293,7 +293,6 @@ class Board(basis.Entity):
             if isinstance(agent, Agent):
                 try:
                     ang = angle(glm.vec2(1, 0), agent.orientation)
-                    print("angle: {}".format(glm.degrees(ang)))
                     renderer.draw_sprite(resource_manager.get_texture("agent"),
                                          glm.vec2(x0 + agent.position.x * cell_width,
                                                   y0 + agent.position.y * cell_height),
@@ -550,18 +549,28 @@ class ResourceManager(basis.Entity):
         super().__init__()
         self.shaders = dict()
         self.textures = dict()
+        self.resource_dir = "res"
 
-    def load_shader(self, shader_name, v_shader_file, f_shader_file, g_shader_file = None):
+    def set_resource_dir(self, dir_name):
+        self.resource_dir = dir_name
+
+    def load_shader(self, shader_name, v_shader_file, f_shader_file, g_shader_file=None):
         v_shader_code = ""
         f_shader_code = ""
         g_shader_code = ""
 
-        with open(v_shader_file) as f:
-            v_shader_code = f.read()
-        with open(f_shader_file) as f:
-            f_shader_code = f.read()
+        v_shader_path = "{}/{}".format(self.resource_dir, v_shader_file)
+        f_shader_path = "{}/{}".format(self.resource_dir, f_shader_file)
+        g_shader_path = None
         if g_shader_file:
-            with open(g_shader_file) as f:
+            g_shader_path = "{}/{}".format(self.resource_dir, g_shader_file)
+
+        with open(v_shader_path) as f:
+            v_shader_code = f.read()
+        with open(f_shader_path) as f:
+            f_shader_code = f.read()
+        if g_shader_path:
+            with open(g_shader_path) as f:
                 g_shader_code = f.read()
 
         shader = Shader()
@@ -576,7 +585,9 @@ class ResourceManager(basis.Entity):
             texture.internal_format = gl.GL_RGBA
             texture.image_format = gl.GL_RGBA
 
-        image = Image.open(texture_file)
+        texture_path = "{}/{}".format(self.resource_dir, texture_file)
+
+        image = Image.open(texture_path)
         data = asarray(image)
         texture.generate(data.shape[1], data.shape[0], data)  # Attention: in np.array height is the first param!
 
@@ -709,11 +720,13 @@ class Viewer(basis.Entity):
         self.render_engine = GlfwRenderer(self.window)
         glfw.set_window_size_callback(self.window, self.window_size_callback)
 
+        glfw.make_context_current(self.window)
+
         self.win_width = Viewer.initial_win_width
         self.win_height = Viewer.initial_win_height
         resource_manager = self.system.find_entity_by_name("ResourceManager")
-        resource_manager.load_shader("sprite", "modules/sprite.vs", "modules/sprite.fs")
-        resource_manager.load_shader("polygon", "modules/polygon.vs", "modules/polygon.fs")
+        resource_manager.load_shader("sprite", "sprite.vs", "sprite.fs")
+        resource_manager.load_shader("polygon", "polygon.vs", "polygon.fs")
 
         self.renderer = None
         self.on_window_resize()
@@ -723,11 +736,13 @@ class Viewer(basis.Entity):
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         self.board = self.system.find_entity_by_name("Board")
-        resource_manager.load_texture("modules/background.png", False, "background")
-        resource_manager.load_texture("modules/agent.png", True, "agent")
-        resource_manager.load_texture("modules/obstacle.png", True, "obstacle")
+        resource_manager.load_texture("background.png", False, "background")
+        resource_manager.load_texture("agent.png", True, "agent")
+        resource_manager.load_texture("obstacle.png", True, "obstacle")
 
     def on_window_resize(self):
+        glfw.make_context_current(self.window)
+        
         gl.glViewport(0, 0, self.win_width, self.win_height)
         projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
         resource_manager = self.system.find_entity_by_name("ResourceManager")
@@ -766,6 +781,8 @@ class Viewer(basis.Entity):
         self.on_window_resize()
 
     def step(self):
+        glfw.make_context_current(self.window)
+
         glfw.poll_events()
         glfw.set_window_title(self.window, "Cells")
         glfw.set_window_size(self.window, self.win_width, self.win_height)
@@ -794,6 +811,50 @@ class Viewer(basis.Entity):
 
         imgui.render()
         self.render_engine.render(imgui.get_draw_data())
+        glfw.swap_buffers(self.window)
+
+
+class NetViewer(basis.Entity):
+    initial_win_size = (initial_win_width, initial_win_height) = (800, 600)
+
+    def __init__(self):
+        super().__init__()
+        self.window = init_glfw()
+        self.render_engine = GlfwRenderer(self.window)
+        glfw.set_window_size_callback(self.window, self.window_size_callback)
+
+        glfw.make_context_current(self.window)
+
+        self.win_width = NetViewer.initial_win_width
+        self.win_height = NetViewer.initial_win_height
+
+        self.renderer = None
+        self.on_window_resize()
+
+        # alpha blending (for transparency, semi-transparency, etc.)
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+
+    def on_window_resize(self):
+        pass
+
+    def window_size_callback(self, window, width, height):
+        self.win_width = width
+        self.win_height = height
+        self.on_window_resize()
+
+    def step(self):
+        glfw.make_context_current(self.window)
+
+        glfw.poll_events()
+        glfw.set_window_title(self.window, "Net")
+        glfw.set_window_size(self.window, self.win_width, self.win_height)
+
+        gl.glClearColor(0.0, 0.0, 0.0, 1.0)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+
+        self.render_engine.process_inputs()
+
         glfw.swap_buffers(self.window)
 
 
