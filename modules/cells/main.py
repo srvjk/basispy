@@ -31,6 +31,7 @@ if w_view:
 
 n_view = system.new(net_viewer.NetViewer)
 if n_view:
+    n_view.net_name = "BrainOfAgent"  # TODO убрать это отсюда
     system.activate(n_view)
 
 if agent:

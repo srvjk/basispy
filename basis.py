@@ -59,6 +59,17 @@ class Entity:
     def find_entity_by_name(self, name):
         return self.entity_name_index.get(name)
 
+    def find_entities_by_name_recursively(self, name):
+        """ Найти рекурсивно все сущности c заданным коротким именем """
+        result = list()
+        for ent in self.entities:
+            if ent.name == name:
+                result.append(ent)
+            tmp_res = ent.find_entities_by_name_recursively(name)
+            if tmp_res:
+                result.extend(tmp_res)
+        return result
+
     def find_entities_by_type_recursively(self, type_name):
         """ Найти рекурсивно все сущности заданного типа или его производных """
         result = list()

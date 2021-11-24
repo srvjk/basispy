@@ -13,11 +13,12 @@ class Link:
 class BasicNeuron:
     def __init__(self):
         self.out_links = list()
-        self.pos = [0, 0]
+        self.pos = [0, 0]                     # "логическое" положение нейрона в сети
+        self.geo_pos = [0, 0]                 # "географическое" положение нейрона, т.е. координаты (x, y)
         self.pre_mediator_quantity = 0
         self.post_mediator_quantity = 0
         self.firing_mediator_threshold = 1.0  # порог количества медиатора, необходимый для срабатывания
-        self.out_mediator_quantum = 0.1  # количество медиатора, которое будет отправлено нейронам-получателям
+        self.out_mediator_quantum = 0.1       # количество медиатора, которое будет отправлено нейронам-получателям
 
     def set_activity(self, activity):
         pass
@@ -106,6 +107,15 @@ class Net(basis.Entity):
         layer.create(neur_num, neur_class)
         self.layers.append(layer)
         return layer
+
+    def neurons(self):
+        """ Get all neurons in flat list """
+        result = list()
+        for layer in self.layers:
+            for neuron in layer.neurons:
+                result.append(neuron)
+
+        return result
 
     def print(self):
         print("Layers: {}".format(len(self.layers)))

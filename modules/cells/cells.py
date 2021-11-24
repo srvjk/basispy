@@ -32,7 +32,7 @@ class Agent(basis.Entity):
         self.orientation = glm.vec2(1, 0)
 
         # neural net
-        self.net = self.new(net.Net)
+        self.net = self.new(net.Net, "BrainOfAgent")
         layer1 = self.net.new_layer("in", 8, net.Sensor)
         layer2 = self.net.new_layer("mid", 4, net.Neuron)
         layer3 = self.net.new_layer("out", 2, net.Neuron)

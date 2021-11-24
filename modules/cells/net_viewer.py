@@ -13,6 +13,8 @@ class NetViewer(basis.Entity):
 
     def __init__(self):
         super().__init__()
+        self.net_name = None
+        self.net = None
         self.window = init_glfw()
         self.render_engine = GlfwRenderer(self.window)
         glfw.set_window_size_callback(self.window, self.window_size_callback)
@@ -22,6 +24,8 @@ class NetViewer(basis.Entity):
         self.win_width = NetViewer.initial_win_width
         self.win_height = NetViewer.initial_win_height
 
+        gogl.resource_manager.load_shader("polygon", "polygon.vs", "polygon.fs")
+
         self.renderer = None
         self.on_window_resize()
 
@@ -30,12 +34,42 @@ class NetViewer(basis.Entity):
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
     def on_window_resize(self):
-        pass
+        glfw.make_context_current(self.window)
+
+        gl.glViewport(0, 0, self.win_width, self.win_height)
+        projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+
+        poly_shader = gogl.resource_manager.get_shader("polygon")
+        poly_shader.use()
+        poly_shader.set_matrix4("projection", projection)
 
     def window_size_callback(self, window, width, height):
         self.win_width = width
         self.win_height = height
         self.on_window_resize()
+
+    def draw_net(self, pos, size):
+        if not self.net:
+            return
+
+        x0 = pos[0]
+        y0 = pos[1]
+        n_size = 5
+
+        polygon = gogl.Polygon(gogl.resource_manager.get_shader("polygon"))
+        polygon.set_points([
+            glm.vec2(0.0, 0.0),
+            glm.vec2(1.0, 0.0),
+            glm.vec2(1.0, 1.0),
+            glm.vec2(0.0, 1.0),
+            glm.vec2(0.0, 0.0)
+        ])
+
+        neurons = self.net.neurons()
+        for neuron in neurons:
+            n_x = neuron.geo_pos[0]
+            n_y = neuron.geo_pos[1]
+            polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, glm.vec3(0.2, 0.2, 0.2), True)
 
     def step(self):
         glfw.make_context_current(self.window)
@@ -48,6 +82,14 @@ class NetViewer(basis.Entity):
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
         self.render_engine.process_inputs()
+
+        if not self.net: # TODO временно, переделать!
+            if self.net_name:
+                nets = self.system.find_entities_by_name_recursively(self.net_name)
+                if len(nets) > 0:
+                    self.net = nets[0]
+
+        self.draw_net((0, 0), (self.win_width, self.win_height))
 
         glfw.swap_buffers(self.window)
 
