@@ -15,6 +15,7 @@ class BasicNeuron:
         self.out_links = list()
         self.pos = [0, 0]                     # "логическое" положение нейрона в сети
         self.geo_pos = [0, 0]                 # "географическое" положение нейрона, т.е. координаты (x, y)
+        self.geo_size = [10, 10]              # физический размер нейрона
         self.pre_mediator_quantity = 0
         self.post_mediator_quantity = 0
         self.firing_mediator_threshold = 1.0  # порог количества медиатора, необходимый для срабатывания
@@ -135,3 +136,19 @@ class Net(basis.Entity):
         for layer in self.layers:
             for neuron in layer.neurons:
                 neuron.swap_mediator_buffers()
+
+    def space_evenly(self):
+        """ Distribute neurons evenly over the available space """
+
+        cur_y = 0
+        for layer in self.layers:
+            cur_x = 0
+            dy = 0  # высота строки нейронов (слоя)
+            for neuron in layer.neurons:
+                neuron.geo_pos[0] = cur_x
+                neuron.geo_pos[1] = cur_y
+                cur_x += neuron.geo_size[0]
+                tmp_y = neuron.geo_size[1]
+                if tmp_y > dy:
+                    dy = tmp_y
+            cur_y += dy

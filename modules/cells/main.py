@@ -35,7 +35,7 @@ if n_view:
     system.activate(n_view)
 
 if agent:
-    agent.set_step_divider(50)
+    agent.set_step_divider(10)
     system.activate(agent)
 
 system.print_entities()

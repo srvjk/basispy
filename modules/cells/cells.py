@@ -38,6 +38,7 @@ class Agent(basis.Entity):
         layer3 = self.net.new_layer("out", 2, net.Neuron)
         layer1.connect(layer2)
         layer2.connect(layer3)
+        self.net.space_evenly()
         self.system.activate(self.net)
 
     def set_board(self, board):
@@ -47,6 +48,14 @@ class Agent(basis.Entity):
     def step(self):
         if not self.board:
             return
+
+        x_ahead = int(self.position[0] + self.orientation[0])
+        y_ahead = int(self.position[1] + self.orientation[1])
+
+        obstacle_sensor_active = False
+        if self.board.is_obstacle(x_ahead, y_ahead):
+            obstacle_sensor_active = True
+        self.net.layers[0].neurons[0].set_activity(obstacle_sensor_active)
 
         '''
         front_sensor_color = self.board.get_cell_color(
@@ -97,6 +106,11 @@ def angle(vec1, vec2):
     return sign * ang
 
 
+class BoardCell:
+    def __init__(self):
+        self.objects = []
+
+
 class Board(basis.Entity):
     def __init__(self):
         super().__init__()
@@ -108,6 +122,14 @@ class Board(basis.Entity):
         #self.compressed_visual_field = pygame.Surface((self.size, self.size))  # поле, сжатое до 1 пиксела на клетку
         self.back_color = (10, 10, 10)
         self.color_no_color = (0, 0, 0)  # цвет для обозначения пространства за пределами поля и т.п.
+
+        # инициализируем двумерный массив ячеек доски
+        self.cells = []
+        for y in range(self.size):
+            row = []
+            for x in range(self.size):
+                row.append(BoardCell())
+            self.cells.append(row)
 
     def size_in_cells(self):
         return self.size
@@ -127,11 +149,19 @@ class Board(basis.Entity):
             obstacle = Obstacle()
             obstacle.position = glm.vec2(x, y)
             self.obstacles.append(obstacle)
+            self.cells[y][x].objects.append(obstacle)  # добавляем объект в матрицу ячеек доски
 
     def get_cell_color(self, x, y):
         if x < 0 or x >= self.size or y < 0 or y >= self.size:
             return self.color_no_color
         return self.compressed_visual_field.get_at((x, y))
+
+    def is_obstacle(self, x, y):
+        cell = self.cells[y][x]
+        for obj in cell.objects:
+            if isinstance(obj, Obstacle):
+                return True
+        return False
 
     def draw(self, renderer, pos, size):
         x0 = pos[0]

@@ -33,6 +33,9 @@ class NetViewer(basis.Entity):
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
+        self.inactive_neuron_color = glm.vec3(0.2, 0.2, 0.2)
+        self.active_neuron_color = glm.vec3(1.0, 1.0, 0.2)
+
     def on_window_resize(self):
         glfw.make_context_current(self.window)
 
@@ -69,7 +72,8 @@ class NetViewer(basis.Entity):
         for neuron in neurons:
             n_x = neuron.geo_pos[0]
             n_y = neuron.geo_pos[1]
-            polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, glm.vec3(0.2, 0.2, 0.2), True)
+            color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
+            polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, color, True)
 
     def step(self):
         glfw.make_context_current(self.window)
