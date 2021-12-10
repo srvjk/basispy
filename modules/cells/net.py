@@ -74,81 +74,22 @@ class Neuron(BasicNeuron):
         self.pre_mediator_quantity = 0
 
 
-class Layer:
-    def __init__(self, name):
-        self.name = name
-        self.neurons = list()
-
-    def create(self, neur_num, neur_class):
-        self.neurons = [neur_class() for _ in range(neur_num)]
-
-    def connect(self, target_layer):
-        for src in self.neurons:
-            for dst in target_layer.neurons:
-                # прямые связи:
-                fwd_link = Link()
-                fwd_link.src_neuron = src
-                fwd_link.dst_neuron = dst
-                src.out_links.append(fwd_link)
-
-                # обратные связи
-                back_link = Link()
-                back_link.src_neuron = dst
-                back_link.dst_neuron = src
-                dst.out_links.append(back_link)
-
-
 class Net(basis.Entity):
     def __init__(self):
         super().__init__()
-        self.layers = list()
-
-    def new_layer(self, layer_name, neur_num, neur_class):
-        layer = Layer(layer_name)
-        layer.create(neur_num, neur_class)
-        self.layers.append(layer)
-        return layer
-
-    def neurons(self):
-        """ Get all neurons in flat list """
-        result = list()
-        for layer in self.layers:
-            for neuron in layer.neurons:
-                result.append(neuron)
-
-        return result
+        self.neurons = list()
 
     def print(self):
-        print("Layers: {}".format(len(self.layers)))
-        for layer in self.layers:
-            print("{}: {}".format(layer.name, len(layer.neurons)))
+        pass
 
     def step(self):
         super().step()
 
         # фаза 1: пройтись во всем нейронам и активировать, какие надо
         # порядок обхода не имеет значения
-        for layer in self.layers:
-            for neuron in layer.neurons:
-                neuron.fire()
+        for neuron in self.neurons:
+            neuron.fire()
 
         # фаза 2: поменять местами буферы накопления активности для следующей итерации
-        for layer in self.layers:
-            for neuron in layer.neurons:
-                neuron.swap_mediator_buffers()
-
-    def space_evenly(self):
-        """ Distribute neurons evenly over the available space """
-
-        cur_y = 0
-        for layer in self.layers:
-            cur_x = 0
-            dy = 0  # высота строки нейронов (слоя)
-            for neuron in layer.neurons:
-                neuron.geo_pos[0] = cur_x
-                neuron.geo_pos[1] = cur_y
-                cur_x += neuron.geo_size[0]
-                tmp_y = neuron.geo_size[1]
-                if tmp_y > dy:
-                    dy = tmp_y
-            cur_y += dy
+        for neuron in self.neurons:
+            neuron.swap_mediator_buffers()

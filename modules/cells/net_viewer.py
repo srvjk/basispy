@@ -68,8 +68,7 @@ class NetViewer(basis.Entity):
             glm.vec2(0.0, 0.0)
         ])
 
-        neurons = self.net.neurons()
-        for neuron in neurons:
+        for neuron in self.net.neurons:
             n_x = neuron.geo_pos[0]
             n_y = neuron.geo_pos[1]
             color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color

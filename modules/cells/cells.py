@@ -33,12 +33,15 @@ class Agent(basis.Entity):
 
         # neural net
         self.net = self.new(net.Net, "BrainOfAgent")
-        layer1 = self.net.new_layer("in", 8, net.Sensor)
-        layer2 = self.net.new_layer("mid", 4, net.Neuron)
-        layer3 = self.net.new_layer("out", 2, net.Neuron)
-        layer1.connect(layer2)
-        layer2.connect(layer3)
-        self.net.space_evenly()
+
+        n = 10
+        for y in range(n):
+            for x in range(n):
+                neuron = net.Neuron()
+                neuron.geo_pos[0] = x * neuron.geo_size[0]
+                neuron.geo_pos[1] = y * neuron.geo_size[1]
+                self.net.neurons.append(neuron)
+
         self.system.activate(self.net)
 
     def set_board(self, board):
@@ -55,7 +58,7 @@ class Agent(basis.Entity):
         obstacle_sensor_active = False
         if self.board.is_obstacle(x_ahead, y_ahead):
             obstacle_sensor_active = True
-        self.net.layers[0].neurons[0].set_activity(obstacle_sensor_active)
+        #self.net.layers[0].neurons[0].set_activity(obstacle_sensor_active)
 
         '''
         front_sensor_color = self.board.get_cell_color(
