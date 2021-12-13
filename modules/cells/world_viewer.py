@@ -11,8 +11,8 @@ import graphics_opengl as gogl
 class WorldViewer(basis.Entity):
     initial_win_size = (initial_win_width, initial_win_height) = (1024, 768)
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system):
+        super().__init__(system)
         self.window = init_glfw()
         imgui.create_context()
         self.render_engine = GlfwRenderer(self.window)

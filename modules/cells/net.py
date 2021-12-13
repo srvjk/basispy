@@ -74,10 +74,13 @@ class Neuron(BasicNeuron):
         self.pre_mediator_quantity = 0
 
 
-class Net(basis.Entity):
-    def __init__(self):
-        super().__init__()
+class SubNet(basis.Entity):
+    def __init__(self, system):
+        super().__init__(system)
         self.neurons = list()
+
+    def init_connections(self, pattern):
+        pass
 
     def print(self):
         pass
@@ -93,3 +96,11 @@ class Net(basis.Entity):
         # фаза 2: поменять местами буферы накопления активности для следующей итерации
         for neuron in self.neurons:
             neuron.swap_mediator_buffers()
+
+
+class Net(basis.Entity):
+    def __init__(self, system):
+        super().__init__(system)
+
+    def step(self):
+        pass

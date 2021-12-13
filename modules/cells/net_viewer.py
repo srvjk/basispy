@@ -6,16 +6,18 @@ import imgui
 from imgui.integrations.glfw import GlfwRenderer
 import glm
 import graphics_opengl as gogl
+import net
 
 
 class NetViewer(basis.Entity):
     initial_win_size = (initial_win_width, initial_win_height) = (800, 600)
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system):
+        super().__init__(system)
         self.net_name = None
         self.net = None
         self.window = init_glfw()
+        imgui.create_context()  #TODO не надо ли сначала проверить, что контекст не существует?
         self.render_engine = GlfwRenderer(self.window)
         glfw.set_window_size_callback(self.window, self.window_size_callback)
 
@@ -68,11 +70,13 @@ class NetViewer(basis.Entity):
             glm.vec2(0.0, 0.0)
         ])
 
-        for neuron in self.net.neurons:
-            n_x = neuron.geo_pos[0]
-            n_y = neuron.geo_pos[1]
-            color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
-            polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, color, True)
+        for ent in self.net.entities:
+            if isinstance(ent, net.SubNet):
+                for neuron in ent.neurons:
+                    n_x = neuron.geo_pos[0]
+                    n_y = neuron.geo_pos[1]
+                    color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
+                    polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, color, True)
 
     def step(self):
         glfw.make_context_current(self.window)

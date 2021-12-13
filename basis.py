@@ -6,26 +6,18 @@ from collections import deque
 
 
 class Entity:
-    system = None
-
-    def __init__(self, name=""):
+    def __init__(self, system, name=""):
         self.name = name
-        if not isinstance(self, System):
-            if not self.system:
-                logging.warning("creating Entity before system_connect")
-
+        self.system = system          # ссылка на систему
+        self.parent = None            # ссылка на родительскую сущность
         self.entities = set()         # вложенные сущности
         self.active_entities = set()  # active nested entities, i.e. those for which step() should be called
         self.entity_name_index = dict()  # nested entity index with name as a key
         self.step_divider = 1  # this entity will be activated every step_divider steps
         self.step_counter = 0  # счетчик шагов индивидуален для каждой сущности
 
-    @classmethod
-    def system_connect(cls, system):
-        cls.system = system
-
     def new(self, class_name, entity_name=""):
-        item = class_name()
+        item = class_name(self.system)
         if not item:
             self.system.report_error("'{}' is not a class name".format(class_name))
             return None
@@ -50,6 +42,8 @@ class Entity:
         if entity in self.entities:
             return True
 
+        entity.parent = self
+        entity.system = self.system
         self.entities.add(entity)
         if entity.name:
             self.entity_name_index[entity.name] = entity
@@ -125,7 +119,8 @@ class Entity:
 
 class System(Entity):
     def __init__(self):
-        super().__init__()
+        super().__init__(system=None)
+        self.system = self
         self.recent_errors = deque(maxlen=10)
         self.step_counter = 0
         self.should_stop = False
@@ -141,14 +136,11 @@ class System(Entity):
         module_spec.loader.exec_module(module)
 
         # set connection with System for each class derived from Entity:
-        symbols = dir(module)
-        for s in symbols:
-            cls = getattr(module, s)
-            if not inspect.isclass(cls):
-                continue
-            if issubclass(cls, Entity):
-                cls.system_connect(self)
-                print('system connect for {} ok'.format(s))
+        # symbols = dir(module)
+        # for s in symbols:
+        #     cls = getattr(module, s)
+        #     if not inspect.isclass(cls):
+        #         continue
 
         return module
 

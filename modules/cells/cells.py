@@ -19,20 +19,20 @@ class AgentAction(Enum):
 
 
 class Obstacle(basis.Entity):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system):
+        super().__init__(system)
         self.position = glm.vec2(0, 0)
 
 
 class Agent(basis.Entity):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system):
+        super().__init__(system)
         self.board = None
         self.position = glm.vec2(0, 0)
         self.orientation = glm.vec2(1, 0)
 
         # neural net
-        self.net = self.new(net.Net, "BrainOfAgent")
+        self.net = self.new(net.SubNet, "BrainOfAgent")
 
         n = 10
         for y in range(n):
@@ -115,8 +115,8 @@ class BoardCell:
 
 
 class Board(basis.Entity):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system):
+        super().__init__(system)
         self.agents = list()
         self.obstacles = list()
         self.size = 100
@@ -149,7 +149,7 @@ class Board(basis.Entity):
         for i in range(num_obstacles):
             x = random.randrange(0, self.size)
             y = random.randrange(0, self.size)
-            obstacle = Obstacle()
+            obstacle = self.new(Obstacle)
             obstacle.position = glm.vec2(x, y)
             self.obstacles.append(obstacle)
             self.cells[y][x].objects.append(obstacle)  # добавляем объект в матрицу ячеек доски
@@ -223,124 +223,6 @@ class Board(basis.Entity):
                 #     glm.vec2(1.0, 1.0)
                 # ])
                 # polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.5, 0.5, 0.5), False)
-
-'''
-
-class Viewer(basis.Entity):
-    def __init__(self):
-        super().__init__()
-        pygame.init()
-        pygame.display.set_caption('Cells')
-        self.board = None
-        size = width, height = 640, 480
-        self.bk_color = (0, 0, 0)
-        self.point_color = (100, 100, 100)
-        self.info_color = (255, 255, 100)
-        self.screen = pygame.display.set_mode(size, pygame.RESIZABLE)
-        self.background_surface = None
-        self.show_grid = True
-        self.show_net_view = True
-        self.delay = 0.5
-        self.clock = pygame.time.Clock()
-        self.toggle_grid_button = None
-        self.recreate_ui()
-
-        # pgu initialization
-        self.pgu_app = gui.App()
-        gen_ctrl = GeneralControl()
-        self.container = gui.Container(align=1, valign=-1)
-        self.container.add(gen_ctrl, 0, 0)
-
-        gen_ctrl.grid_btn.connect(gui.CLICK, self.toggle_grid)
-        gen_ctrl.net_view_button.connect(gui.CLICK, self.toggle_net_view)
-        gen_ctrl.info_view_button.connect(gui.CLICK, self.toggle_info_view)
-
-        self.net_view = None
-        self.info_view = None
-
-        self.pgu_app.init(self.container)
-
-    def recreate_ui(self):
-        self.background_surface = pygame.Surface(self.screen.get_size()).convert()
-        self.background_surface.fill(self.bk_color)
-
-    def set_board(self, board):
-        self.board = board
-
-    def toggle_grid(self):
-        self.show_grid = not self.show_grid
-
-    def toggle_net_view(self):
-        if self.net_view:
-            self.container.remove(self.net_view)
-            self.net_view = None
-        else:
-            self.net_view = NetView(width=320, height=240)
-            self.container.add(self.net_view, 200, 200)
-        self.container.repaint()
-
-    def toggle_info_view(self):
-        if self.info_view:
-            self.container.remove(self.info_view)
-            self.info_view = None
-        else:
-            self.info_view = InfoView(width=320, height=240)
-            self.container.add(self.info_view, 200, 500)
-        self.container.repaint()
-
-    def step(self):
-        time_delta = self.clock.tick(60) / 1000.0
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                sys.exit()
-            if event.type == pygame.VIDEORESIZE:
-                print("new size {}x{}".format(event.w, event.h))
-                self.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
-                self.recreate_ui()
-            if event.type == pygame.USEREVENT:
-                pass
-            else:
-                self.pgu_app.event(event)
-
-        self.screen.blit(self.background_surface, (0, 0))
-
-        actual_size = pygame.display.get_window_size()
-
-        # draw the board
-        if self.board:
-            board_size = min(actual_size[0], actual_size[1])
-            scaled_cell_size = board_size / self.board.size
-
-            self.board.draw()
-            scaled_visual_field = pygame.transform.scale(self.board.visual_field, (board_size, board_size))
-            self.screen.blit(scaled_visual_field, (0, 0))
-
-            # self.screen.blit(self.board.compressed_visual_field, (board_size, 0))
-
-            if self.show_grid:
-                y = scaled_cell_size / 2.0
-                for row in range(self.board.size):
-                    x = scaled_cell_size / 2.0
-                    for col in range(self.board.size):
-                        point_rect = pygame.Rect(x, y, 1, 1)
-                        pygame.draw.rect(self.screen, self.point_color, point_rect)
-                        x += scaled_cell_size
-                    y += scaled_cell_size
-
-            agent = None
-            if len(self.board.agents) > 0:
-                agent = self.board.agents[0]
-            if agent:
-                p1 = (agent.position[0] * scaled_cell_size + scaled_cell_size / 2.0,
-                      agent.position[1] * scaled_cell_size + scaled_cell_size / 2.0)
-                p2 = (p1[0] + agent.orientation[0] * scaled_cell_size,
-                      p1[1] + agent.orientation[1] * scaled_cell_size)
-                pygame.draw.line(self.screen, self.info_color, p1, p2, 1)
-
-        self.pgu_app.paint()
-        pygame.display.update()
-'''
 
 
 def unit_test():
