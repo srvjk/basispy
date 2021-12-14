@@ -78,17 +78,31 @@ class NetViewer(basis.Entity):
                     color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
                     polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, color, True)
 
+    def draw_control_window(self):
+        imgui.set_next_window_size(200, 200)
+        imgui.begin("Control panel")
+
+        selected_neuron_number = imgui.input_int("neuron number", 0)
+
+        imgui.end()
+
     def step(self):
         glfw.make_context_current(self.window)
 
-        glfw.poll_events()
         glfw.set_window_title(self.window, "Net")
         glfw.set_window_size(self.window, self.win_width, self.win_height)
 
+        glfw.poll_events()
+        self.render_engine.process_inputs()
+
+        imgui.new_frame()
+
+        self.draw_control_window()
+
+        imgui.render()
+
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
-
-        self.render_engine.process_inputs()
 
         if not self.net: # TODO временно, переделать!
             if self.net_name:
@@ -98,6 +112,7 @@ class NetViewer(basis.Entity):
 
         self.draw_net((0, 0), (self.win_width, self.win_height))
 
+        self.render_engine.render(imgui.get_draw_data())
         glfw.swap_buffers(self.window)
 
 def init_glfw():

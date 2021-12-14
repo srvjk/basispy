@@ -5,13 +5,22 @@ import imgui
 from imgui.integrations.glfw import GlfwRenderer
 
 
+class GuiHelper(basis.Entity):
+    def __init__(self, system):
+        super().__init__(system)
+        glfw.init()
+        imgui.create_context()
+
+    def step(self):
+        glfw.poll_events()
+
+
 class ControlPanel(basis.Entity):
     initial_win_size = (initial_win_width, initial_win_height) = (1024, 768)
 
     def __init__(self, system):
         super().__init__(system)
-        self.window = init_glfw()
-        imgui.create_context()
+        self.window = create_glfw_window()
         self.render_engine = GlfwRenderer(self.window)
         glfw.set_window_size_callback(self.window, self.window_size_callback)
 
@@ -34,7 +43,6 @@ class ControlPanel(basis.Entity):
     def step(self):
         glfw.make_context_current(self.window)
 
-        glfw.poll_events()
         glfw.set_window_title(self.window, "Basis Control Panel")
         glfw.set_window_size(self.window, self.win_width, self.win_height)
 
@@ -53,11 +61,7 @@ class ControlPanel(basis.Entity):
         glfw.swap_buffers(self.window)
 
 
-def init_glfw():
-    # Initialize the GLFW library
-    if not glfw.init():
-        return
-
+def create_glfw_window():
     # OpenGL 3 or above is required
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)

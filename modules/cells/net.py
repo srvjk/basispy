@@ -1,4 +1,5 @@
 import basis
+import random
 
 
 class Link:
@@ -80,7 +81,26 @@ class SubNet(basis.Entity):
         self.neurons = list()
 
     def init_connections(self, pattern):
-        pass
+        excitatory_links_percent = 80  # процент возбуждающих связей (остальные - тормозящие)
+        max_abs_weight = 10.0          # максимальное по абсолютной величине значение веса связи
+        for neur_src in self.neurons:
+            for neur_dst in self.neurons:
+                if neur_dst != neur_src:
+                    link = Link()
+                    link.src_neuron = neur_src
+                    link.dst_neuron = neur_dst
+
+                    # выбираем вес связи случайным образом с учётом максимального:
+                    link.weight = random.uniform(0, max_abs_weight)
+
+                    # выбираем тип связи (возбуждающая или тормозящая) с учетом заданного соотношения:
+                    rnd = random.randint(0, 100)
+                    if rnd < excitatory_links_percent:
+                        link.sign = 1
+                    else:
+                        link.sign = -1
+                    neur_src.out_links.append(link)
+
 
     def print(self):
         pass
