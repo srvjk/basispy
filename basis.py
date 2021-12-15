@@ -50,27 +50,37 @@ class Entity:
 
         return True
 
-    def find_entity_by_name(self, name):
+    def get_entity_by_name(self, name):
+        """ Найти вложенную сущность по ее уникальному имени, нерекурсивно """
         return self.entity_name_index.get(name)
 
-    def find_entities_by_name_recursively(self, name):
-        """ Найти рекурсивно все сущности c заданным коротким именем """
+    def get_entities_by_name_recursively(self, name):
+        """ Найти рекурсивно все вложенные сущности c заданным коротким именем """
         result = list()
         for ent in self.entities:
             if ent.name == name:
                 result.append(ent)
-            tmp_res = ent.find_entities_by_name_recursively(name)
+            tmp_res = ent.get_entities_by_name_recursively(name)
             if tmp_res:
                 result.extend(tmp_res)
         return result
 
-    def find_entities_by_type_recursively(self, type_name):
-        """ Найти рекурсивно все сущности заданного типа или его производных """
+    def get_entities_by_type(self, type_name):
+        """ Найти (без рекурсии) все вложенные сущности заданного типа или его производных """
         result = list()
         for ent in self.entities:
             if isinstance(ent, type_name):
                 result.append(ent)
-            tmp_res = ent.find_entities_by_type_recursively(type_name)
+
+        return result
+
+    def get_entities_by_type_recursively(self, type_name):
+        """ Найти рекурсивно все вложенные сущности заданного типа или его производных """
+        result = list()
+        for ent in self.entities:
+            if isinstance(ent, type_name):
+                result.append(ent)
+            tmp_res = ent.get_entities_by_type_recursively(type_name)
             if tmp_res:
                 result.extend(tmp_res)
         return result

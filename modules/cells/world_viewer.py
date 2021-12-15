@@ -32,7 +32,7 @@ class WorldViewer(basis.Entity):
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
-        self.board = self.system.find_entity_by_name("Board")
+        self.board = self.system.get_entity_by_name("Board")
         gogl.resource_manager.load_texture("background.png", False, "background")
         gogl.resource_manager.load_texture("agent.png", True, "agent")
         gogl.resource_manager.load_texture("obstacle.png", True, "obstacle")

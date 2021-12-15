@@ -44,6 +44,10 @@ class NetViewer(basis.Entity):
         self.inactive_neuron_color = glm.vec3(0.2, 0.2, 0.2)
         self.active_neuron_color = glm.vec3(1.0, 1.0, 0.2)
 
+        # переменные состояния для пользовательского интерфейса ImGui
+        self.selected_subnet_number = 0  # номер текущей выбранной подсети
+        self.selected_neuron_number = 0  # номер нейрона, выбранного на контрольной панели
+
     def on_window_resize(self):
         glfw.make_context_current(self.window)
 
@@ -88,7 +92,12 @@ class NetViewer(basis.Entity):
         imgui.set_next_window_size(200, 200)
         imgui.begin("Control panel")
 
-        selected_neuron_number = imgui.input_int("neuron number", 0)
+        subnet_changed, self.selected_subnet_number = imgui.input_int("subnet", self.selected_subnet_number)
+        neuron_changed, self.selected_neuron_number = imgui.input_int("neuron", self.selected_neuron_number)
+        # if subnet_changed:
+        #     subnets = self.net.get_entities_by_type(net.SubNet)
+        #     if 0 <= self.selected_subnet_number <= len(subnets):
+        #         for subnet in subnets:
 
         imgui.end()
 
@@ -109,7 +118,7 @@ class NetViewer(basis.Entity):
 
         if not self.net: # TODO временно, переделать!
             if self.net_name:
-                nets = self.system.find_entities_by_name_recursively(self.net_name)
+                nets = self.system.get_entities_by_name_recursively(self.net_name)
                 if len(nets) > 0:
                     self.net = nets[0]
 

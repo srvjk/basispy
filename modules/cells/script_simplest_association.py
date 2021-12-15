@@ -26,7 +26,7 @@ class Scenario(basis.Entity):
 
     def step(self):
         if not self.net:
-            self.net = self.system.find_entity_by_name("Net")
+            self.net = self.system.get_entity_by_name("Net")
             if self.net:
                 print("connection with Net established")
             else:

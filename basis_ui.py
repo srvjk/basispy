@@ -49,9 +49,6 @@ class ControlPanel(basis.Entity):
         imgui.set_current_context(self.imgui_context)
         glfw.poll_events()
 
-        io = imgui.get_io()
-        print(io.display_size)
-
         glfw.set_window_title(self.window, "Basis Control Panel")
         glfw.set_window_size(self.window, self.win_width, self.win_height)
 
@@ -60,8 +57,6 @@ class ControlPanel(basis.Entity):
 
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
-
-        io.display_size = (self.win_width, self.win_height)
 
         imgui.new_frame()
 

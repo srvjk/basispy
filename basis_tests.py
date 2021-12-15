@@ -10,13 +10,13 @@ class TestEntity1(basis.Entity):
 
 def test1() -> bool:
     test_entity_one = system.new(TestEntity1, "InitialName")
-    if system.find_entity_by_name("InitialName") != test_entity_one:
+    if system.get_entity_by_name("InitialName") != test_entity_one:
         return False
 
     test_entity_one.rename("NewName")
-    if system.find_entity_by_name("InitialName") is not None:
+    if system.get_entity_by_name("InitialName") is not None:
         return False
-    if system.find_entity_by_name("NewName") != test_entity_one:
+    if system.get_entity_by_name("NewName") != test_entity_one:
         return False
 
     return True
