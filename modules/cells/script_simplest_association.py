@@ -54,14 +54,14 @@ def main():
 
     net = system.new(net_module.Net, "Net")
 
-    # net_viewer = system.load('net_viewer.py')
-    # if not net_viewer:
-    #     sys.exit('could not load module "net_viewer"')
-    #
-    # n_view = system.new(net_viewer.NetViewer)
-    # if n_view:
-    #     n_view.net_name = "Net"  # TODO убрать это отсюда
-    #     system.activate(n_view)
+    net_viewer = system.load('net_viewer.py')
+    if not net_viewer:
+        sys.exit('could not load module "net_viewer"')
+
+    n_view = system.new(net_viewer.NetViewer)
+    if n_view:
+        n_view.net_name = "Net"  # TODO убрать это отсюда
+        system.activate(n_view)
 
     scenario = system.new(Scenario, "Scenario")
     if scenario:

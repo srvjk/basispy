@@ -7,6 +7,7 @@ from imgui.integrations.glfw import GlfwRenderer
 import glm
 import graphics_opengl as gogl
 import net
+import basis_ui
 
 
 class NetViewer(basis.Entity):
@@ -16,8 +17,8 @@ class NetViewer(basis.Entity):
         super().__init__(system)
         self.net_name = None
         self.net = None
-        self.window = init_glfw()
-        imgui.create_context()  #TODO не надо ли сначала проверить, что контекст не существует?
+        self.window = basis_ui.create_glfw_window()
+        self.imgui_context = imgui.create_context()
         self.render_engine = GlfwRenderer(self.window)
         glfw.set_window_size_callback(self.window, self.window_size_callback)
 
@@ -37,6 +38,8 @@ class NetViewer(basis.Entity):
 
         self.inactive_neuron_color = glm.vec3(0.2, 0.2, 0.2)
         self.active_neuron_color = glm.vec3(1.0, 1.0, 0.2)
+
+        #self.imgui_context = imgui.get_current_context()
 
     def on_window_resize(self):
         glfw.make_context_current(self.window)
@@ -88,11 +91,11 @@ class NetViewer(basis.Entity):
 
     def step(self):
         glfw.make_context_current(self.window)
+        imgui.set_current_context(self.imgui_context)
 
         glfw.set_window_title(self.window, "Net")
         glfw.set_window_size(self.window, self.win_width, self.win_height)
 
-        glfw.poll_events()
         self.render_engine.process_inputs()
 
         imgui.new_frame()
@@ -114,37 +117,3 @@ class NetViewer(basis.Entity):
 
         self.render_engine.render(imgui.get_draw_data())
         glfw.swap_buffers(self.window)
-
-def init_glfw():
-    # Initialize the GLFW library
-    if not glfw.init():
-        return
-
-    # OpenGL 3 or above is required
-    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
-    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
-    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-    glfw.window_hint(glfw.RESIZABLE, True)
-    # OpenGL context should be forward-compatible
-    glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, gl.GL_TRUE)
-
-    # Create a window in windowed mode and it's OpenGL context
-    primary = glfw.get_primary_monitor()  # for GLFWmonitor
-    window = glfw.create_window(
-        NetViewer.initial_win_width,  # width, is required here but overwritten by "glfw.set_window_size()" above
-        NetViewer.initial_win_height,  # height, is required here but overwritten by "glfw.set_window_size()" above
-        "pyimgui-examples-glfw",  # window name, is overwritten by "glfw.set_window_title()" above
-        None,  # GLFWmonitor: None = windowed mode, 'primary' to choose fullscreen (resolution needs to be adjusted)
-        None  # GLFWwindow
-    )
-
-    # Exception handler if window wasn't created
-    if not window:
-        glfw.terminate()
-        return
-
-    # Makes window current on the calling thread
-    glfw.make_context_current(window)
-
-    # Passing window to main()
-    return window
