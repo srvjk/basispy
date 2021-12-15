@@ -11,7 +11,7 @@ class GuiHelper(basis.Entity):
         glfw.init()
 
     def step(self):
-        glfw.poll_events()
+        pass
 
 
 class ControlPanel(basis.Entity):
@@ -19,9 +19,13 @@ class ControlPanel(basis.Entity):
 
     def __init__(self, system):
         super().__init__(system)
-        self.window = create_glfw_window()
         self.imgui_context = imgui.create_context()
+        imgui.set_current_context(self.imgui_context)
+        self.window = create_glfw_window()
         self.render_engine = GlfwRenderer(self.window)
+        io = imgui.get_io()
+        io.fonts.add_font_default()
+
         glfw.set_window_size_callback(self.window, self.window_size_callback)
 
         glfw.make_context_current(self.window)
@@ -43,6 +47,7 @@ class ControlPanel(basis.Entity):
     def step(self):
         glfw.make_context_current(self.window)
         imgui.set_current_context(self.imgui_context)
+        glfw.poll_events()
 
         io = imgui.get_io()
         print(io.display_size)
@@ -56,8 +61,6 @@ class ControlPanel(basis.Entity):
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
-        self.render_engine.process_inputs()
-
         io.display_size = (self.win_width, self.win_height)
 
         imgui.new_frame()
@@ -65,6 +68,7 @@ class ControlPanel(basis.Entity):
         imgui.render()
         self.render_engine.render(imgui.get_draw_data())
         glfw.swap_buffers(self.window)
+        self.render_engine.process_inputs()
 
 
 def create_glfw_window(win_width=800, win_height=600):

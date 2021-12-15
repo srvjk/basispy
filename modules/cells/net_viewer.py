@@ -17,9 +17,14 @@ class NetViewer(basis.Entity):
         super().__init__(system)
         self.net_name = None
         self.net = None
-        self.window = basis_ui.create_glfw_window()
+
         self.imgui_context = imgui.create_context()
+        imgui.set_current_context(self.imgui_context)
+        self.window = basis_ui.create_glfw_window()
         self.render_engine = GlfwRenderer(self.window)
+        io = imgui.get_io()
+        io.fonts.add_font_default()
+
         glfw.set_window_size_callback(self.window, self.window_size_callback)
 
         glfw.make_context_current(self.window)
@@ -38,8 +43,6 @@ class NetViewer(basis.Entity):
 
         self.inactive_neuron_color = glm.vec3(0.2, 0.2, 0.2)
         self.active_neuron_color = glm.vec3(1.0, 1.0, 0.2)
-
-        #self.imgui_context = imgui.get_current_context()
 
     def on_window_resize(self):
         glfw.make_context_current(self.window)
@@ -92,17 +95,14 @@ class NetViewer(basis.Entity):
     def step(self):
         glfw.make_context_current(self.window)
         imgui.set_current_context(self.imgui_context)
+        glfw.poll_events()
 
         glfw.set_window_title(self.window, "Net")
         glfw.set_window_size(self.window, self.win_width, self.win_height)
 
-        self.render_engine.process_inputs()
-
         imgui.new_frame()
 
         self.draw_control_window()
-
-        imgui.render()
 
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -115,5 +115,7 @@ class NetViewer(basis.Entity):
 
         self.draw_net((0, 0), (self.win_width, self.win_height))
 
+        imgui.render()
         self.render_engine.render(imgui.get_draw_data())
         glfw.swap_buffers(self.window)
+        self.render_engine.process_inputs()
