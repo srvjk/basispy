@@ -3,11 +3,17 @@ import importlib.util
 import inspect
 import logging
 from collections import deque
+import uuid
+
+
+class BasisException(Exception):
+    pass
 
 
 class Entity:
     def __init__(self, system, name=""):
-        self.name = name
+        self.uuid = uuid.uuid4()      # глобально уникальный, случайно генерируемый идентификатор сущности
+        self.name = name              # имя сущности (не обязано быть уникальным)
         self.system = system          # ссылка на систему
         self.parent = None            # ссылка на родительскую сущность
         self.entities = set()         # вложенные сущности
@@ -48,7 +54,12 @@ class Entity:
         if entity.name:
             self.entity_name_index[entity.name] = entity
 
+        self.system.register_entity(entity)  # заносим сущность в общесистемный реестр
+
         return True
+
+    def get_entity_by_id(self, entity_uuid):
+        return self.system.entity_uuid_index.get(entity_uuid)
 
     def get_entity_by_name(self, name):
         """ Найти вложенную сущность по ее уникальному имени, нерекурсивно """
@@ -127,10 +138,17 @@ class Entity:
         self.step_counter += 1
 
 
+class EntityCollisionException(BasisException):
+    def __init__(self, message=""):
+        super().__init__()
+        self.message = message
+
+
 class System(Entity):
     def __init__(self):
         super().__init__(system=None)
         self.system = self
+        self.entity_uuid_index = dict()  # индекс всех сущностей в системе с доступом по UUID
         self.recent_errors = deque(maxlen=10)
         self.step_counter = 0
         self.should_stop = False
@@ -153,6 +171,20 @@ class System(Entity):
         #         continue
 
         return module
+
+    def register_entity(self, entity):
+        old = self.entity_uuid_index.get(entity.uuid, None)
+        if old:
+            if old == entity:
+                return  # эта сущность уже в списке
+            else:
+                msg = "trying to register entity with UUID={}, but item already exists".format(entity.uuid)
+                raise EntityCollisionException(msg)
+
+        self.entity_uuid_index[entity.uuid] = entity
+
+    def unregister_entity(self, entity):
+        pass
 
     def step(self):
         super().step()

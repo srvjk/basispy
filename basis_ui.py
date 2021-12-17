@@ -14,6 +14,32 @@ class GuiHelper(basis.Entity):
         pass
 
 
+class EntityObserver:
+    def __init__(self):
+        pass
+
+    def draw_entity(self, entity):
+        text = "{} : {}".format(entity.uuid, entity.name)
+        is_open = imgui.tree_node(text)
+        imgui.next_column()
+        if hasattr(entity, 'selected'):
+            button_text = "[ ]"
+            if entity.selected:
+                button_text = "[*]"
+            if imgui.button(button_text):
+                entity.selected = not entity.selected
+        imgui.next_column()
+        if is_open:
+            for child in entity.entities:
+                self.draw_entity(child)
+            imgui.tree_pop()
+
+    def draw(self, root_entity):
+        imgui.columns(2, "tree", True)
+
+        self.draw_entity(root_entity)
+
+
 class ControlPanel(basis.Entity):
     initial_win_size = (initial_win_width, initial_win_height) = (1024, 768)
 
@@ -35,6 +61,8 @@ class ControlPanel(basis.Entity):
 
         self.renderer = None
         self.on_window_resize()
+
+        self.entity_observer = EntityObserver()
 
     def on_window_resize(self):
         pass
@@ -59,6 +87,8 @@ class ControlPanel(basis.Entity):
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
         imgui.new_frame()
+
+        self.entity_observer.draw(self.system)
 
         imgui.render()
         self.render_engine.render(imgui.get_draw_data())

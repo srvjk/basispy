@@ -79,6 +79,7 @@ class SubNet(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.neurons = list()
+        self.selected = False
 
     def init_connections(self, pattern):
         excitatory_links_percent = 80  # процент возбуждающих связей (остальные - тормозящие)
@@ -121,6 +122,7 @@ class SubNet(basis.Entity):
 class Net(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
+        self.selected = False
 
     def step(self):
         pass

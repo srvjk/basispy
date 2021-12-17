@@ -9,6 +9,24 @@ import graphics_opengl as gogl
 import net
 import basis_ui
 
+class NetControlWindow(basis.Entity):
+    def __init__(self, system):
+        super().__init__(system)
+        self.net_id = None
+
+    def set_net(self, net_id):
+        self.net_id = net_id
+
+    def draw(self):
+        net = self.get_entity_by_id(self.net_id)
+        if not net:
+            return
+
+        imgui.set_next_window_size(640, 480)
+        imgui.begin("Net Control [{}]".format(net.name))
+
+
+        imgui.end()
 
 class NetViewer(basis.Entity):
     initial_win_size = (initial_win_width, initial_win_height) = (800, 600)
@@ -47,6 +65,8 @@ class NetViewer(basis.Entity):
         # переменные состояния для пользовательского интерфейса ImGui
         self.selected_subnet_number = 0  # номер текущей выбранной подсети
         self.selected_neuron_number = 0  # номер нейрона, выбранного на контрольной панели
+
+        self.net_control_window = self.new(NetControlWindow)
 
     def on_window_resize(self):
         glfw.make_context_current(self.window)
@@ -88,19 +108,6 @@ class NetViewer(basis.Entity):
                     color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
                     polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, color, True)
 
-    def draw_control_window(self):
-        imgui.set_next_window_size(200, 200)
-        imgui.begin("Control panel")
-
-        subnet_changed, self.selected_subnet_number = imgui.input_int("subnet", self.selected_subnet_number)
-        neuron_changed, self.selected_neuron_number = imgui.input_int("neuron", self.selected_neuron_number)
-        # if subnet_changed:
-        #     subnets = self.net.get_entities_by_type(net.SubNet)
-        #     if 0 <= self.selected_subnet_number <= len(subnets):
-        #         for subnet in subnets:
-
-        imgui.end()
-
     def step(self):
         glfw.make_context_current(self.window)
         imgui.set_current_context(self.imgui_context)
@@ -111,7 +118,7 @@ class NetViewer(basis.Entity):
 
         imgui.new_frame()
 
-        self.draw_control_window()
+        self.net_control_window.draw()
 
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -121,6 +128,8 @@ class NetViewer(basis.Entity):
                 nets = self.system.get_entities_by_name_recursively(self.net_name)
                 if len(nets) > 0:
                     self.net = nets[0]
+                    if self.net_control_window:
+                        self.net_control_window.set_net(self.net.uuid)
 
         self.draw_net((0, 0), (self.win_width, self.win_height))
 
