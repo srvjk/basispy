@@ -17,10 +17,9 @@ class Scenario(basis.Entity):
         n = 10
         for row in range(n):
             for col in range(n):
-                neuron = net.Neuron()
+                neuron = main_subnet.new(net.Neuron)
                 neuron.geo_pos[0] = col * neuron.geo_size[0]
                 neuron.geo_pos[1] = row * neuron.geo_size[1]
-                main_subnet.neurons.append(neuron)
 
         main_subnet.init_connections(pattern='random')
 
@@ -68,9 +67,9 @@ def main():
         system.activate(scenario)
 
     # выводим главную панель управления
-    control_panel = system.new(basis_ui.ControlPanel, "ControlPanel")
-    if control_panel:
-        system.activate(control_panel)
+    # control_panel = system.new(basis_ui.ControlPanel, "ControlPanel")
+    # if control_panel:
+    #     system.activate(control_panel)
 
     # запускаем систему
     system.operate()

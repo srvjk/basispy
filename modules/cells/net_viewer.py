@@ -13,18 +13,31 @@ class NetControlWindow(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.net_id = None
+        self.selected_subnet = None
+        self.selected_neuron_number = 0
+        self.selected_neurons = list()
 
     def set_net(self, net_id):
         self.net_id = net_id
 
     def draw(self):
-        net = self.get_entity_by_id(self.net_id)
-        if not net:
+        network = self.get_entity_by_id(self.net_id)
+        if not network:
             return
 
         imgui.set_next_window_size(640, 480)
-        imgui.begin("Net Control [{}]".format(net.name))
+        imgui.begin("Net Control [{}]".format(network.name))
 
+        subnets = [str(ent.uuid) for ent in network.entities if isinstance(ent, net.SubNet)]
+        _, self.selected_subnet = imgui.combo("subnet", 0, subnets)
+
+        _, self.selected_neuron_number = imgui.input_int("neuron number", self.selected_neuron_number)
+
+        if imgui.button("Add to list"):
+            self.selected_neurons.append((self.selected_subnet, self.selected_neuron_number))
+
+        for item in self.selected_neurons:
+            imgui.selectable("{}:{}".format(item[0], item[1]))
 
         imgui.end()
 
@@ -100,15 +113,24 @@ class NetViewer(basis.Entity):
             glm.vec2(0.0, 0.0)
         ])
 
-        for ent in self.net.entities:
-            if isinstance(ent, net.SubNet):
-                for neuron in ent.neurons:
-                    n_x = neuron.geo_pos[0]
-                    n_y = neuron.geo_pos[1]
-                    color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
-                    polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, color, True)
+        for subnet in self.net.entities:
+            if not isinstance(subnet, net.SubNet):
+                continue
+            for neuron in subnet.entities:
+                if not isinstance(neuron, net.Neuron):
+                    continue
+                n_x = neuron.geo_pos[0]
+                n_y = neuron.geo_pos[1]
+                color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
+                polygon.draw(glm.vec2(x0 + n_x, y0 + n_y), glm.vec2(n_size, n_size), 0.0, color, True)
 
     def step(self):
+        if glfw.window_should_close(self.window):
+            self.render_engine.shutdown()
+            glfw.terminate()
+            self.system.shutdown()
+            return
+
         glfw.make_context_current(self.window)
         imgui.set_current_context(self.imgui_context)
         glfw.poll_events()
