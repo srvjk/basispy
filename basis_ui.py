@@ -4,6 +4,36 @@ import OpenGL.GL as gl
 import imgui
 from imgui.integrations.glfw import GlfwRenderer
 
+def normalize_color(r : float, g : float, b : float):
+    x = 1.5 / (r + g + b)
+
+    r *= x
+    g *= x
+    b *= x
+
+    return r, g, b
+
+def make_color_dim(r : float, g : float, b : float, factor=0.3):
+    r, g, b = normalize_color(r, g, b)
+
+    r *= factor
+    g *= factor
+    b *= factor
+
+    return r, g, b
+
+def make_color_bright(r : float, g : float, b : float, factor=1.3):
+    r, g, b = normalize_color(r, g, b)
+
+    max_val = max(r, g, b)
+    ratio = min(1.0 / max_val, factor)
+
+    r *= ratio
+    g *= ratio
+    b *= ratio
+
+    return r, g, b
+
 
 class GuiHelper(basis.Entity):
     def __init__(self, system):
