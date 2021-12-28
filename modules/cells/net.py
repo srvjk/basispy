@@ -15,9 +15,7 @@ class Neuron(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.out_links = list()
-        self.pos = [0, 0]                     # "логическое" положение нейрона в сети
-        self.geo_pos = [0, 0]                 # "географическое" положение нейрона, т.е. координаты (x, y)
-        self.geo_size = [10, 10]              # физический размер нейрона
+        self.pos = [0, 0, 0]                  # положение нейрона в сети (в большинстве случаев 2D, т.е. pos[2] = 0)
         self.pre_mediator_quantity = 0
         self.post_mediator_quantity = 0
         self.firing_mediator_threshold = 1.0  # порог количества медиатора, необходимый для срабатывания
@@ -54,7 +52,7 @@ class Neuron(basis.Entity):
         self.pre_mediator_quantity = 0
 
 
-class SubNet(basis.Entity):
+class Net(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.selected = False
@@ -107,11 +105,3 @@ class SubNet(basis.Entity):
                 continue
             neuron.swap_mediator_buffers()
 
-
-class Net(basis.Entity):
-    def __init__(self, system):
-        super().__init__(system)
-        self.selected = False
-
-    def step(self):
-        pass

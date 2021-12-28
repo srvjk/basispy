@@ -38,8 +38,8 @@ class Agent(basis.Entity):
         for y in range(n):
             for x in range(n):
                 neuron = net.Neuron()
-                neuron.geo_pos[0] = x * neuron.geo_size[0]
-                neuron.geo_pos[1] = y * neuron.geo_size[1]
+                neuron.pos[0] = x
+                neuron.pos[1] = y
                 self.net.neurons.append(neuron)
 
         self.system.activate(self.net)

@@ -10,18 +10,13 @@ class Scenario(basis.Entity):
         self.net = None
 
     def init_net(self):
-        main_subnet = self.net.new(net.SubNet, "MainSubNet")
-        if not main_subnet:
-            return
-
         n = 10
-        for row in range(n):
-            for col in range(n):
-                neuron = main_subnet.new(net.Neuron)
-                neuron.geo_pos[0] = col * neuron.geo_size[0]
-                neuron.geo_pos[1] = row * neuron.geo_size[1]
+        for y in range(n):
+            for x in range(n):
+                neuron = self.net.new(net.Neuron)
+                neuron.pos = [x, y]
 
-        main_subnet.init_connections(pattern='random')
+        self.net.init_connections(pattern='random')
 
     def step(self):
         if not self.net:
