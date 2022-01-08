@@ -1,14 +1,12 @@
 import basis
-from imgui.integrations.glfw import GlfwRenderer
 import glfw
 import OpenGL.GL as gl
 import imgui
 from imgui.integrations.glfw import GlfwRenderer
 import glm
 import graphics_opengl as gogl
-import net
+import net_core
 import basis_ui
-import uuid
 
 
 class NetControlWindow(basis.Entity):
@@ -168,7 +166,7 @@ class NetViewer(basis.Entity):
         line_color = glm.vec3(0.7, 0.7, 0.7)
 
         for neuron in self.net.entities:
-            if not isinstance(neuron, net.Neuron):
+            if not isinstance(neuron, net_core.Neuron):
                 continue
             x = x0 + neuron.pos[0] * (self.neuron_size + self.margin)
             y = y0 + neuron.pos[1] * (self.neuron_size + self.margin)

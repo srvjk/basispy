@@ -1,5 +1,5 @@
 import basis
-import net
+import net_core
 import sys
 import random
 from enum import Enum
@@ -32,12 +32,12 @@ class Agent(basis.Entity):
         self.orientation = glm.vec2(1, 0)
 
         # neural net
-        self.net = self.new(net.SubNet, "BrainOfAgent")
+        self.net = self.new(net_core.SubNet, "BrainOfAgent")
 
         n = 10
         for y in range(n):
             for x in range(n):
-                neuron = net.Neuron()
+                neuron = net_core.Neuron()
                 neuron.pos[0] = x
                 neuron.pos[1] = y
                 self.net.neurons.append(neuron)
