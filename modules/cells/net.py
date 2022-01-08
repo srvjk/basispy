@@ -1,5 +1,6 @@
 import basis
 import random
+from rtree import index
 
 
 class Link:
@@ -56,6 +57,9 @@ class Net(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.selected = False
+        p = index.Property()
+        p.dimension = 3
+        self.spatial_index = index.Index(properties=p)
 
     def init_connections(self, pattern):
         excitatory_links_percent = 80  # процент возбуждающих связей (остальные - тормозящие)

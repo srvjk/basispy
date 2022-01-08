@@ -16,8 +16,8 @@ class NetControlWindow(basis.Entity):
         super().__init__(system)
         self.net_id = None
         self.net_viewer_id = None
-        self.selected_subnet_number = None
-        self.selected_neuron_number = 0
+        self.selected_neuron_x = 0
+        self.selected_neuron_y = 0
         self.selected_neurons = set()
         self.show_links = False
 
@@ -45,15 +45,29 @@ class NetControlWindow(basis.Entity):
                 if net_viewer.neuron_size > 1:
                     net_viewer.neuron_size -= 1
 
-        _, self.selected_neuron_number = imgui.input_int("neuron number", self.selected_neuron_number)
+        _, self.selected_neuron_x = imgui.input_int("neur. X", self.selected_neuron_x)
+        _, self.selected_neuron_y = imgui.input_int("neur. Y", self.selected_neuron_y)
 
         if imgui.button("Add to list"):
-            current_neuron_index = 0
-            for neuron in network.entities:
-                if isinstance(neuron, net.Neuron):
-                    if self.selected_neuron_number == current_neuron_index:
-                        self.selected_neurons.add(neuron.uuid)
-                    current_neuron_index += 1
+            d = 0.1
+            x_min = self.selected_neuron_x - d
+            y_min = self.selected_neuron_y - d
+            z_min = 0 - d
+            x_max = self.selected_neuron_x + d
+            y_max = self.selected_neuron_y + d
+            z_max = 0 + d
+
+            neuron_uuids = network.spatial_index.intersection((x_min, y_min, z_min, x_max, y_max, z_max),
+                                                              objects="raw")
+            for item in neuron_uuids:
+                self.selected_neurons.add(item)
+
+            # current_neuron_index = 0
+            # for neuron in network.entities:
+            #     if isinstance(neuron, net.Neuron):
+            #         if self.selected_neuron_number == current_neuron_index:
+            #             self.selected_neurons.add(neuron.uuid)
+            #         current_neuron_index += 1
 
         for item in self.selected_neurons:
             imgui.selectable("{}".format(item))
@@ -150,6 +164,9 @@ class NetViewer(basis.Entity):
             glm.vec2(0.0, 0.0)
         ])
 
+        line = gogl.Polygon(gogl.resource_manager.get_shader("polygon"))
+        line_color = glm.vec3(0.7, 0.7, 0.7)
+
         for neuron in self.net.entities:
             if not isinstance(neuron, net.Neuron):
                 continue
@@ -165,7 +182,13 @@ class NetViewer(basis.Entity):
                                  0.0, self.selection_frame_color, False)
                     if self.net_control_window.show_links:
                         for link in neuron.out_links:
-                            pass
+                            x_dst = (link.dst_neuron.pos[0] - neuron.pos[0]) * (self.neuron_size + self.margin)
+                            y_dst = (link.dst_neuron.pos[1] - neuron.pos[1]) * (self.neuron_size + self.margin)
+                            line.set_points([
+                                glm.vec2(0.0, 0.0),
+                                glm.vec2(x_dst, y_dst)
+                            ])
+                            line.draw(glm.vec2(x, y), glm.vec2(1.0, 1.0), 0.0, line_color, False)
 
 
     def step(self):
