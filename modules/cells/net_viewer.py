@@ -163,7 +163,10 @@ class NetViewer(basis.Entity):
         ])
 
         line = gogl.Polygon(gogl.resource_manager.get_shader("polygon"))
-        line_color = glm.vec3(0.7, 0.7, 0.7)
+
+        # базовые цвета связей (окончательные будут зависеть от веса связи)
+        excitatory_link_color_base = glm.vec3(1.0, 0.1, 0.1)  # базовый цвет для возбуждающей сввзи
+        inhibitory_link_color_base = glm.vec3(0.1, 0.1, 1.0)  # базовый цвет для тормозящей связи
 
         for neuron in self.net.entities:
             if not isinstance(neuron, net_core.Neuron):
@@ -178,16 +181,25 @@ class NetViewer(basis.Entity):
                 if neuron.uuid in self.net_control_window.selected_neurons:
                     polygon.draw(glm.vec2(x, y), glm.vec2(self.neuron_size, self.neuron_size),
                                  0.0, self.selection_frame_color, False)
-                    if self.net_control_window.show_links:
-                        for link in neuron.out_links:
-                            x_dst = (link.dst_neuron.pos[0] - neuron.pos[0]) * (self.neuron_size + self.margin)
-                            y_dst = (link.dst_neuron.pos[1] - neuron.pos[1]) * (self.neuron_size + self.margin)
-                            line.set_points([
-                                glm.vec2(0.0, 0.0),
-                                glm.vec2(x_dst, y_dst)
-                            ])
-                            line.draw(glm.vec2(x, y), glm.vec2(1.0, 1.0), 0.0, line_color, False)
 
+        if self.net_control_window.show_links:
+            for neuron_uuid in self.net_control_window.selected_neurons:
+                neuron = self.net.get_entity_by_id(neuron_uuid)
+                if neuron:
+                    x = x0 + neuron.pos[0] * (self.neuron_size + self.margin)
+                    y = y0 + neuron.pos[1] * (self.neuron_size + self.margin)
+                    for link in neuron.out_links:
+                        x_dst = (link.dst_neuron.pos[0] - neuron.pos[0]) * (self.neuron_size + self.margin)
+                        y_dst = (link.dst_neuron.pos[1] - neuron.pos[1]) * (self.neuron_size + self.margin)
+                        neur_half_size = self.neuron_size / 2.0
+                        line.set_points([
+                            glm.vec2(neur_half_size, neur_half_size),
+                            glm.vec2(x_dst + neur_half_size, y_dst + neur_half_size)
+                        ])
+
+                        link_base_color = excitatory_link_color_base if link.sign > 0 else inhibitory_link_color_base
+
+                        line.draw(glm.vec2(x, y), glm.vec2(1.0, 1.0), 0.0, link_base_color, False)
 
     def step(self):
         if glfw.window_should_close(self.window):

@@ -110,7 +110,7 @@ class Texture:
         gl.glBindTexture(gl.GL_TEXTURE_2D, self.id)
 
 
-class ResourceManager():
+class ResourceManager:
     def __init__(self):
         self.shaders = dict()
         self.textures = dict()
