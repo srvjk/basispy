@@ -1,9 +1,8 @@
 import importlib
 import importlib.util
-import inspect
-import logging
 from collections import deque
 import uuid
+import time
 
 
 class BasisException(Exception):
@@ -12,15 +11,20 @@ class BasisException(Exception):
 
 class Entity:
     def __init__(self, system, name=""):
-        self.uuid = uuid.uuid4()      # глобально уникальный, случайно генерируемый идентификатор сущности
-        self.name = name              # имя сущности (не обязано быть уникальным)
-        self.system = system          # ссылка на систему
-        self.parent = None            # ссылка на родительскую сущность
-        self.entities = set()         # вложенные сущности
-        self.active_entities = set()  # active nested entities, i.e. those for which step() should be called
+        self.uuid = uuid.uuid4()         # глобально уникальный, случайно генерируемый идентификатор сущности
+        self.name = name                 # имя сущности (не обязано быть уникальным)
+        self.system = system             # ссылка на систему
+        self.parent = None               # ссылка на родительскую сущность
+        self.entities = set()            # вложенные сущности
+        self.active_entities = set()     # active nested entities, i.e. those for which step() should be called
         self.entity_name_index = dict()  # nested entity index with name as a key
-        self.step_divider = 1  # this entity will be activated every step_divider steps
-        self.step_counter = 0  # счетчик шагов индивидуален для каждой сущности
+        self.step_divider = 1            # this entity will be activated every step_divider steps
+        self._step_counter = 0           # счетчик шагов индивидуален для каждой сущности
+        self._fps = 0.0                  # мгновенная частота шагов/кадров (кадров в секунду)
+        self._last_step_counter = 0      # последнее сохраненное значение счетчика шагов
+        self._last_time_stamp = 0        # последняя сделанная временная отметка, нс
+        self._fps_probe_interval = int(1e9)  # интервал между замерами FPS, нс
+        self._pause = False              # флаг режима паузы
 
     def new(self, class_name, entity_name=""):
         item = class_name(self.system)
@@ -135,7 +139,28 @@ class Entity:
         self.step_divider = div_value
 
     def step(self):
-        self.step_counter += 1
+        if self._pause:
+            return
+
+        self._step_counter += 1
+        t_now = time.time_ns()
+        step_diff = self._step_counter - self._last_step_counter
+        t_diff = t_now - self._last_time_stamp
+        if t_diff > self._fps_probe_interval:
+            t_diff_seconds = t_diff / 1e9
+            self._fps = step_diff / t_diff_seconds
+            self._last_step_counter = self._step_counter
+            self._last_time_stamp = t_now
+
+
+    def get_step_counter(self):
+        return self._step_counter
+
+    def get_fps(self):
+        return self._fps
+
+    def pause(self, pause_on=True):
+        self._pause = pause_on
 
 
 class EntityCollisionException(BasisException):
@@ -150,7 +175,6 @@ class System(Entity):
         self.system = self
         self.entity_uuid_index = dict()  # индекс всех сущностей в системе с доступом по UUID
         self.recent_errors = deque(maxlen=10)
-        self.step_counter = 0
         self.should_stop = False
 
     def load(self, module_name, dir_path='.'):

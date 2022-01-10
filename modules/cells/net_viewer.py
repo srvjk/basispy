@@ -18,6 +18,7 @@ class NetControlWindow(basis.Entity):
         self.selected_neuron_y = 0
         self.selected_neurons = set()
         self.show_links = False
+        self.pause_on = False
 
     def set_net(self, net_id):
         self.net_id = net_id
@@ -29,6 +30,17 @@ class NetControlWindow(basis.Entity):
 
         imgui.set_next_window_size(640, 480)
         imgui.begin("Net Control [{}]".format(network.name))
+
+        pause_button_text = "Resume" if self.pause_on else "Pause"
+        if imgui.button(pause_button_text):
+            self.pause_on = ~self.pause_on
+            self.system.pause(self.pause_on)
+            for k, v in self.system.entity_uuid_index.items():
+                if not isinstance(v, (NetControlWindow, NetViewer)):
+                    v.pause(self.pause_on)
+
+        imgui.text("System steps: {}".format(self.system.get_step_counter()))
+        imgui.text("System fps: {:.2f}".format(self.system.get_fps()))
 
         net_viewer = self.get_entity_by_id(self.net_viewer_id)
         if not net_viewer:

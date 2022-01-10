@@ -10,7 +10,7 @@ class Scenario(basis.Entity):
         self.net = None
 
     def init_net(self):
-        n = 10
+        n = 20
         neuron_index = 0
         for y in range(n):
             for x in range(n):
