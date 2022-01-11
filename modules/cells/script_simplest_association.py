@@ -8,9 +8,10 @@ class Scenario(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.net = None
+        self.trigger_pattern_1 = self.new(basis.OnOffTrigger, "Pattern-1")
 
     def init_net(self):
-        n = 20
+        n = 10
         neuron_index = 0
         for y in range(n):
             for x in range(n):
@@ -21,6 +22,24 @@ class Scenario(basis.Entity):
 
         self.net.init_connections(pattern='random')
 
+    def do_pattern_default(self):
+        if not self.net:
+            return
+
+        for neuron in self.net.entities:
+            if not isinstance(neuron, net_core.Neuron):
+                continue
+            neuron.set_activity(False)
+
+    def do_pattern_1(self):
+        if not self.net:
+            return
+
+        for neuron in self.net.entities:
+            if not isinstance(neuron, net_core.Neuron):
+                continue
+            neuron.set_activity(True)
+
     def step(self):
         if not self.net:
             self.net = self.system.get_entity_by_name("Net")
@@ -30,6 +49,11 @@ class Scenario(basis.Entity):
                 return
 
             self.init_net()
+
+        if self.trigger_pattern_1.state:
+            self.do_pattern_1()
+        else:
+            self.do_pattern_default()
 
 
 def main():

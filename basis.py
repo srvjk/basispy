@@ -163,6 +163,23 @@ class Entity:
         self._pause = pause_on
 
 
+class OnOffTrigger(Entity):
+    def __init__(self, system):
+        super().__init__(system)
+        self.state = False
+        self.caption_on = "On"
+        self.caption_off = "Off"
+
+    def caption(self):
+        if self.state:
+            return self.caption_on
+        else:
+            return self.caption_off
+
+    def toggle(self):
+        self.state = not self.state
+
+
 class EntityCollisionException(BasisException):
     def __init__(self, message=""):
         super().__init__()

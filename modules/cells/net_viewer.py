@@ -17,6 +17,7 @@ class NetControlWindow(basis.Entity):
         self.selected_neuron_x = 0
         self.selected_neuron_y = 0
         self.selected_neurons = set()
+        self.show_net = False
         self.show_links = False
         self.pause_on = False
 
@@ -31,9 +32,13 @@ class NetControlWindow(basis.Entity):
         imgui.set_next_window_size(640, 480)
         imgui.begin("Net Control [{}]".format(network.name))
 
+        show_net_button_text = "Hide Net" if self.show_net else "Show Net"
+        if imgui.button(show_net_button_text):
+            self.show_net = not self.show_net
+
         pause_button_text = "Resume" if self.pause_on else "Pause"
         if imgui.button(pause_button_text):
-            self.pause_on = ~self.pause_on
+            self.pause_on = not self.pause_on
             self.system.pause(self.pause_on)
             for k, v in self.system.entity_uuid_index.items():
                 if not isinstance(v, (NetControlWindow, NetViewer)):
@@ -98,6 +103,17 @@ class NetControlWindow(basis.Entity):
                 self.show_links = not self.show_links
             imgui.pop_style_color(3)
 
+        imgui.dummy(0.0, 20.0)
+
+        # кнопки для триггеров, определенных в сценарии
+        scenario = self.system.get_entity_by_name("Scenario")
+        if scenario:
+            triggers = scenario.get_entities_by_type(basis.OnOffTrigger)
+            for trigger in triggers:
+                if imgui.button("{}:{}".format(trigger.name, trigger.caption())):
+                    trigger.toggle()
+                imgui.same_line()
+
         imgui.end()
 
 class NetViewer(basis.Entity):
@@ -160,6 +176,9 @@ class NetViewer(basis.Entity):
 
     def draw_net(self, pos, size):
         if not self.net:
+            return
+
+        if not self.net_control_window.show_net:
             return
 
         x0 = pos[0]
