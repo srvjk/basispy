@@ -190,9 +190,12 @@ class System(Entity):
     def __init__(self):
         super().__init__(system=None)
         self.system = self
-        self.entity_uuid_index = dict()  # индекс всех сущностей в системе с доступом по UUID
+        self.entity_uuid_index = dict()        # индекс всех сущностей в системе с доступом по UUID
         self.recent_errors = deque(maxlen=10)
         self.should_stop = False
+        self._last_model_time_stamp = 0        # последняя на данный момент отметка модельного времени
+        self.model_time_speed = 1.0            # скорость модельного времени относительно реального
+        self._model_time_ns = 0                # модельное время (от первого System.step()), нс
 
     def load(self, module_name, dir_path='.'):
         module_full_path = dir_path + '/' + module_name
@@ -229,6 +232,17 @@ class System(Entity):
 
     def step(self):
         super().step()
+
+        # измерения модельного времени
+        time_now = time.monotonic_ns()
+        if self._last_model_time_stamp > 0:
+            time_delta_abs = time_now - self._last_model_time_stamp    # всегда > 0, поскольку часы 'monotonic'
+            time_delta_model = time_delta_abs * self.model_time_speed  # интервал модельного времени
+            self._model_time_ns += time_delta_model
+
+        self._last_model_time_stamp = time_now
+
+
         for entity in self.active_entities:
             if self.step_counter % entity.step_divider == 0:
                 entity.step()
@@ -249,6 +263,12 @@ class System(Entity):
 
     def report_error(self, error_description):
         self.recent_errors.append(error_description)
+
+    def model_time_ns(self):
+        return self._model_time_ns
+
+    def model_time_s(self):
+        return self._model_time_ns / 1e9
 
 
 def main():

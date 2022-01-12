@@ -32,6 +32,21 @@ class NetControlWindow(basis.Entity):
         imgui.set_next_window_size(640, 480)
         imgui.begin("Net Control [{}]".format(network.name))
 
+        imgui.text("Model time {:.3f} s (speed = {:.2f})".format(
+            self.system.model_time_s(),
+            self.system.model_time_speed
+        ))
+        imgui.same_line()
+        if imgui.button("Faster"):
+            self.system.model_time_speed *= 1.5
+        imgui.same_line()
+        if imgui.button("Slower"):
+            self.system.model_time_speed /= 1.5
+        imgui.same_line()
+        if imgui.button("1 : 1"):
+            self.system.model_time_speed = 1.0
+
+
         show_net_button_text = "Hide Net" if self.show_net else "Show Net"
         if imgui.button(show_net_button_text):
             self.show_net = not self.show_net
