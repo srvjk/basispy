@@ -51,13 +51,23 @@ class NetControlWindow(basis.Entity):
         if imgui.button(show_net_button_text):
             self.show_net = not self.show_net
 
-        pause_button_text = "Resume" if self.pause_on else "Pause"
+        if imgui.button("Activate Net"):
+            self.system.activate(network)
+
+        # pause_button_text = "Resume" if self.pause_on else "Pause"
+        # if imgui.button(pause_button_text):
+        #     self.pause_on = not self.pause_on
+        #     self.system.pause(self.pause_on)
+        #     for k, v in self.system.entity_uuid_index.items():
+        #         if not isinstance(v, (NetControlWindow, NetViewer)):
+        #             v.pause(self.pause_on)
+
+        pause_button_text = "Resume" if self.system.pause else "Pause"
         if imgui.button(pause_button_text):
-            self.pause_on = not self.pause_on
-            self.system.pause(self.pause_on)
-            for k, v in self.system.entity_uuid_index.items():
-                if not isinstance(v, (NetControlWindow, NetViewer)):
-                    v.pause(self.pause_on)
+            self.system.pause = not self.system.pause
+        imgui.same_line()
+        if imgui.button(">"):
+            self.system.step_forward_time_delta = 1e9  #TODO сделать настраиваемым
 
         imgui.text("System steps: {}".format(self.system.get_step_counter()))
         imgui.text("System fps: {:.2f}".format(self.system.get_fps()))
@@ -105,6 +115,8 @@ class NetControlWindow(basis.Entity):
         if self.selected_neurons:
             if imgui.button("Clear list"):
                 self.selected_neurons.clear()
+
+            # кнопка 'Links':
             base_color = (0.5, 0.0, 0.8)
             color_dim = basis_ui.make_color_dim(*base_color)
             color_bright = basis_ui.make_color_bright(*base_color)
@@ -116,6 +128,20 @@ class NetControlWindow(basis.Entity):
             imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *color_active)
             if imgui.button("Links"):
                 self.show_links = not self.show_links
+            imgui.pop_style_color(3)
+
+            # кнопка 'Info':
+            base_color = (0.0, 0.8, 0.5)
+            color_dim = basis_ui.make_color_dim(*base_color)
+            color_bright = basis_ui.make_color_bright(*base_color)
+            color = color_bright if self.show_links else color_dim
+            color_hovered = basis_ui.make_color_bright(*color, factor=1.1)
+            color_active = color_hovered
+            imgui.push_style_color(imgui.COLOR_BUTTON, *color)
+            imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *color_hovered)
+            imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *color_active)
+            if imgui.button("Info"):
+                self.show_info()
             imgui.pop_style_color(3)
 
         imgui.dummy(0.0, 20.0)
@@ -130,6 +156,9 @@ class NetControlWindow(basis.Entity):
                 imgui.same_line()
 
         imgui.end()
+
+    def show_info(self):
+        pass
 
 class NetViewer(basis.Entity):
     initial_win_size = (initial_win_width, initial_win_height) = (800, 600)

@@ -24,7 +24,6 @@ class Entity:
         self._last_step_counter = 0      # последнее сохраненное значение счетчика шагов
         self._last_time_stamp = 0        # последняя сделанная временная отметка, нс
         self._fps_probe_interval = int(1e9)  # интервал между замерами FPS, нс
-        self._pause = False              # флаг режима паузы
 
     def new(self, class_name, entity_name=""):
         item = class_name(self.system)
@@ -139,9 +138,6 @@ class Entity:
         self.step_divider = div_value
 
     def step(self):
-        if self._pause:
-            return
-
         self._step_counter += 1
         t_now = time.time_ns()
         step_diff = self._step_counter - self._last_step_counter
@@ -158,9 +154,6 @@ class Entity:
 
     def get_fps(self):
         return self._fps
-
-    def pause(self, pause_on=True):
-        self._pause = pause_on
 
 
 class OnOffTrigger(Entity):
@@ -196,6 +189,8 @@ class System(Entity):
         self._last_model_time_stamp = 0        # последняя на данный момент отметка модельного времени
         self.model_time_speed = 1.0            # скорость модельного времени относительно реального
         self._model_time_ns = 0                # модельное время (от первого System.step()), нс
+        self.pause = False                     # флаг режима "Пауза/пошаговый"
+        self.step_forward_time_delta = 0       # величина единичного сдвига по времени в пошаговом режиме, нс
 
     def load(self, module_name, dir_path='.'):
         module_full_path = dir_path + '/' + module_name
@@ -235,15 +230,19 @@ class System(Entity):
 
         # измерения модельного времени
         time_now = time.monotonic_ns()
-        if self._last_model_time_stamp > 0:
-            time_delta_abs = time_now - self._last_model_time_stamp    # всегда > 0, поскольку часы 'monotonic'
-            time_delta_model = time_delta_abs * self.model_time_speed  # интервал модельного времени
-            self._model_time_ns += time_delta_model
+        if not self.pause:
+            if self._last_model_time_stamp > 0:
+                time_delta_abs = time_now - self._last_model_time_stamp    # всегда > 0, поскольку часы 'monotonic'
+                time_delta_model = time_delta_abs * self.model_time_speed  # интервал модельного времени
+                self._model_time_ns += time_delta_model
+        else:
+            # в режиме паузы мы либо стоим на месте, либо сдвигаемся однократно на заданное время и снова ждём
+            self._model_time_ns += self.step_forward_time_delta
+            self.step_forward_time_delta = 0
 
         self._last_model_time_stamp = time_now
 
-
-        for entity in self.active_entities:
+        for entity in self.active_entities.copy():
             if self.step_counter % entity.step_divider == 0:
                 entity.step()
 
