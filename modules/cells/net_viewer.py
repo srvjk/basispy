@@ -8,6 +8,19 @@ import graphics_opengl as gogl
 import net_core
 import basis_ui
 
+class NeuronInfoWindow(basis.Entity):
+    def __init__(self, system):
+        super().__init__(system)
+        self.neuron = None
+
+    def draw(self):
+        if not self.neuron:
+            return
+
+        imgui.begin("Neuron {}".format(self.neuron.uuid))
+
+        imgui.end()
+
 
 class NetControlWindow(basis.Entity):
     def __init__(self, system):
@@ -29,7 +42,7 @@ class NetControlWindow(basis.Entity):
         if not network:
             return
 
-        imgui.set_next_window_size(640, 480)
+        # imgui.set_next_window_size(640, 480)
         imgui.begin("Net Control [{}]".format(network.name))
 
         imgui.text("Model time {:.3f} s (speed = {:.2f})".format(
@@ -141,7 +154,7 @@ class NetControlWindow(basis.Entity):
             imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, *color_hovered)
             imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, *color_active)
             if imgui.button("Info"):
-                self.show_info()
+                self.append_info_windows(self.selected_neurons)
             imgui.pop_style_color(3)
 
         imgui.dummy(0.0, 20.0)
@@ -157,11 +170,29 @@ class NetControlWindow(basis.Entity):
 
         imgui.end()
 
-    def show_info(self):
-        pass
+    def append_info_windows(self, uuids):
+        """
+        Создать и вывести информационные окна для данного списка сущностей, если таких ещё нет.
+        :param uuids: идентификаторы сущностей, для которых нужно создать инфоокна
+        :return:
+        """
+        net_viewer = self.get_entity_by_id(self.net_viewer_id)
+        if not net_viewer:
+            return
+
+        for id in uuids:
+            ent = self.system.get_entity_by_id(id)
+            if not ent:
+                continue
+            if isinstance(ent, net_core.Neuron):
+                if id not in net_viewer.neurons_to_show.keys():
+                    info_window = net_viewer.new(NeuronInfoWindow)
+                    info_window.neuron = ent
+                    net_viewer.neurons_to_show[id] = info_window
+
 
 class NetViewer(basis.Entity):
-    initial_win_size = (initial_win_width, initial_win_height) = (800, 600)
+    initial_win_size = (initial_win_width, initial_win_height) = (800, 600)  #TODO убрать это, брать прошлый размер
 
     def __init__(self, system):
         super().__init__(system)
@@ -202,6 +233,7 @@ class NetViewer(basis.Entity):
         self.selected_neuron_number = 0  # номер нейрона, выбранного на контрольной панели
 
         self.net_control_window = self.new(NetControlWindow)
+        self.neurons_to_show = dict()
 
     def on_window_resize(self):
         glfw.make_context_current(self.window)
@@ -292,7 +324,11 @@ class NetViewer(basis.Entity):
 
         imgui.new_frame()
 
+        # окно управления
         self.net_control_window.draw()
+        # информационные окна нейронов, если они есть
+        for _, wnd in self.neurons_to_show.items():
+            wnd.draw()
 
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
