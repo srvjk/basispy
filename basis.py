@@ -159,18 +159,18 @@ class Entity:
 class OnOffTrigger(Entity):
     def __init__(self, system):
         super().__init__(system)
-        self.state = False
+        self.active = False
         self.caption_on = "On"
         self.caption_off = "Off"
 
     def caption(self):
-        if self.state:
+        if self.active:
             return self.caption_on
         else:
             return self.caption_off
 
     def toggle(self):
-        self.state = not self.state
+        self.active = not self.active
 
 
 class EntityCollisionException(BasisException):

@@ -28,12 +28,13 @@ class Neuron(basis.Entity):
         self.firing_mediator_threshold = 100.0  # порог количества медиатора, необходимый для срабатывания
         self.out_mediator_quantum = 0.1         # количество медиатора, которое будет отправлено нейронам-получателям
         self.time_prev = -0.1                   # прошлая отметка времени
-        self.mediator_decrease_speed = 1.0      # скорость убывания медиатора, ед./сек
+        self.mediator_decrease_speed = 100.0    # скорость убывания медиатора, ед./сек
         self.idle_potential_level = 0.0         # уровень потенциала покоя, у.е.
         self.action_potential_level = 1.0       # уровень потенциала действия, у.е.
         self.potential = self.idle_potential_level  # текущий уровень потенциала
         self.firing_start_time = 0.0            # время начала импульса
         self.spike_duration = 0.003             # длительность импульса, сек
+        self.fires_count = 0                    # количество импульсов за время сеанса работы
 
     def set_activity(self, activity):
         if activity:
@@ -57,27 +58,31 @@ class Neuron(basis.Entity):
 
         time_delta = time_now - self.time_prev
 
-        # прежде всего уменьшаем кол-во медиатора в накопительном буфере, имитируя его рассевание и распад
+        # прежде всего уменьшаем кол-во медиатора в накопительном буфере, имитируя его рассевание и распад;
+        # этот процесс происходит всегда, независимо от текущего состояния нейрона
         mediator_delta = self.mediator_decrease_speed * time_delta
         self.pre_mediator_quantity -= min(mediator_delta, self.pre_mediator_quantity)
 
-        # если количество медиатора в РАБОЧЕМ буфере превышает порог срабатывания, повышаем потенциал с
-        # с потенциала покоя до потенциала действия
-        if self.post_mediator_quantity >= self.firing_mediator_threshold:
-            self.potential = self.action_potential_level
-            self.firing_start_time = time_now  # фиксируем время начала импульса
+        if not self.is_active():
+            # если количество медиатора в РАБОЧЕМ буфере превышает порог срабатывания, повышаем потенциал
+            # с потенциала покоя до потенциала действия
+            if self.post_mediator_quantity >= self.firing_mediator_threshold:
+                self.potential = self.action_potential_level
+                self.firing_start_time = time_now  # фиксируем время начала импульса
+                self.fires_count += 1
 
-        # если мы всё еще в состоянии действия, раздаем медиатор по всем исходящим связям;
-        # (порция раздаваемого медиатора постоянна для данного нейрона, но при передаче она умножается на вес и
-        # полярность связи, так что разные постсинаптические нейроны получат разное кол-во медиатора)
-        firing_end_time = self.firing_start_time + self.spike_duration
-        if time_now <= firing_end_time:
+        if self.is_active():
+            firing_end_time = self.firing_start_time + self.spike_duration
+
+            # если мы всё еще в состоянии действия, раздаем медиатор по всем исходящим связям;
+            # (порция раздаваемого медиатора постоянна для данного нейрона, но при передаче она умножается на вес и
+            # полярность связи, так что разные постсинаптические нейроны получат разное кол-во медиатора)
             for link in self.out_links:
                 link.dst_neuron.add_mediator(self.out_mediator_quantum * link.weight * link.sign)
 
-        # проверяем, не пора ли снизить потенциал
-        if time_now > firing_end_time:
-            self.potential = self.idle_potential_level
+            # проверяем, не пора ли снизить потенциал, т.е. закончить импульс
+            if time_now > firing_end_time:
+                self.potential = self.idle_potential_level
 
         self.time_prev = time_now
 

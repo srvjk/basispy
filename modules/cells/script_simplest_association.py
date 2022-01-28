@@ -9,6 +9,7 @@ class Scenario(basis.Entity):
         super().__init__(system)
         self.net = None
         self.trigger_pattern_1 = self.new(basis.OnOffTrigger, "Pattern-1")
+        self.trigger_pattern_clear = self.new(basis.OnOffTrigger, "Clear")
 
     def init_net(self):
         n = 10
@@ -23,6 +24,9 @@ class Scenario(basis.Entity):
         self.net.init_connections(pattern='random')
 
     def do_pattern_default(self):
+        pass
+
+    def do_pattern_clear(self):
         if not self.net:
             return
 
@@ -50,8 +54,10 @@ class Scenario(basis.Entity):
 
             self.init_net()
 
-        if self.trigger_pattern_1.state:
+        if self.trigger_pattern_1.active:
             self.do_pattern_1()
+        elif self.trigger_pattern_clear.active:
+            self.do_pattern_clear()
         else:
             self.do_pattern_default()
 

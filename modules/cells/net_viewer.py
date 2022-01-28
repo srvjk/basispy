@@ -19,6 +19,19 @@ class NeuronInfoWindow(basis.Entity):
 
         imgui.begin("Neuron {}".format(self.neuron.uuid))
 
+        txt = "Med. lvl: {:.2f} -> {:.2f}".format(
+            self.neuron.pre_mediator_quantity,
+            self.neuron.post_mediator_quantity
+        )
+        imgui.text(txt)
+        txt = "Med. thr: {:.2f}".format(self.neuron.firing_mediator_threshold)
+        if self.neuron.is_active():
+            txt += "*"
+        imgui.text(txt)
+        txt = "Fires: {}".format(self.neuron.fires_count)
+        imgui.text(txt)
+
+
         imgui.end()
 
 
