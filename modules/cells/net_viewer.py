@@ -11,6 +11,7 @@ import basis_ui
 class NeuronInfoWindow(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
+        self.may_be_paused = False
         self.neuron = None
 
     def draw(self):
@@ -38,6 +39,7 @@ class NeuronInfoWindow(basis.Entity):
 class NetControlWindow(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
+        self.may_be_paused = False
         self.net_id = None
         self.net_viewer_id = None
         self.selected_neuron_x = 0
@@ -57,6 +59,11 @@ class NetControlWindow(basis.Entity):
 
         # imgui.set_next_window_size(640, 480)
         imgui.begin("Net Control [{}]".format(network.name))
+
+        if self.system.timing_mode == basis.TimingMode.UnrealTime:
+            imgui.text("Non-real time mode")
+        elif self.system.timing_mode == basis.TimingMode.RealTime:
+            imgui.text("Real time mode")
 
         imgui.text("Model time {:.3f} s (speed = {:.2f})".format(
             self.system.model_time_s(),
@@ -209,6 +216,7 @@ class NetViewer(basis.Entity):
 
     def __init__(self, system):
         super().__init__(system)
+        self.may_be_paused = False
         self.net_name = None
         self.net = None
         self.neuron_size = 5

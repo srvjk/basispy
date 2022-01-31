@@ -3,6 +3,7 @@ import importlib.util
 from collections import deque
 import uuid
 import time
+from enum import Enum
 
 
 class BasisException(Exception):
@@ -24,6 +25,7 @@ class Entity:
         self._last_step_counter = 0      # последнее сохраненное значение счетчика шагов
         self._last_time_stamp = 0        # последняя сделанная временная отметка, нс
         self._fps_probe_interval = int(1e9)  # интервал между замерами FPS, нс
+        self.may_be_paused = True        # можно ли ставить эту сущность на паузу
 
     def new(self, class_name, entity_name=""):
         item = class_name(self.system)
@@ -179,6 +181,16 @@ class EntityCollisionException(BasisException):
         self.message = message
 
 
+class TimingMode(Enum):
+    UnrealTime = 0
+    RealTime = 1
+
+
+class UnsupportedTimingModeException(BasisException):
+    def __init__(self, message=""):
+        super().__init__()
+        self.message = message
+
 class System(Entity):
     def __init__(self):
         super().__init__(system=None)
@@ -187,10 +199,12 @@ class System(Entity):
         self.recent_errors = deque(maxlen=10)
         self.should_stop = False
         self._last_model_time_stamp = 0        # последняя на данный момент отметка модельного времени
-        self.model_time_speed = 1.0            # скорость модельного времени относительно реального
         self._model_time_ns = 0                # модельное время (от первого System.step()), нс
         self.pause = False                     # флаг режима "Пауза/пошаговый"
-        self.step_forward_time_delta = 0       # величина единичного сдвига по времени в пошаговом режиме, нс
+        self.step_time_delta_ns = 1000000      # длительность 1 шага модельного времени, нс
+        #self.timing_mode = TimingMode.UnrealTime # режим исчисления модельного времени
+        self.timing_mode = TimingMode.RealTime # режим исчисления модельного времени
+        self.model_time_speed = 1.0
 
     def load(self, module_name, dir_path='.'):
         module_full_path = dir_path + '/' + module_name
@@ -228,23 +242,30 @@ class System(Entity):
     def step(self):
         super().step()
 
-        # измерения модельного времени
-        time_now = time.monotonic_ns()
-        if not self.pause:
-            if self._last_model_time_stamp > 0:
-                time_delta_abs = time_now - self._last_model_time_stamp    # всегда > 0, поскольку часы 'monotonic'
-                time_delta_model = time_delta_abs * self.model_time_speed  # интервал модельного времени
-                self._model_time_ns += time_delta_model
-        else:
-            # в режиме паузы мы либо стоим на месте, либо сдвигаемся однократно на заданное время и снова ждём
-            self._model_time_ns += self.step_forward_time_delta
-            self.step_forward_time_delta = 0
-
-        self._last_model_time_stamp = time_now
-
         for entity in self.active_entities.copy():
             if self.step_counter % entity.step_divider == 0:
-                entity.step()
+                skip_entity = False
+                if self.pause:
+                    if entity.may_be_paused:
+                        skip_entity = True
+                if not skip_entity:
+                    entity.step()
+
+        # измерения модельного времени
+        if self.timing_mode == TimingMode.UnrealTime:
+            if not self.pause:
+                self._model_time_ns += self.step_time_delta_ns
+        elif self.timing_mode == TimingMode.RealTime:
+            time_now = time.monotonic_ns()
+            if self.step_counter == 1:
+                self._last_model_time_stamp = time_now  # на первом шаге только делается стартовая отметка времени
+            time_delta = 0
+            if not self.pause:
+                time_delta = time_now  - self._last_model_time_stamp  # время паузы мы просто пропускаем
+            self._last_model_time_stamp = time_now
+            self._model_time_ns += time_delta
+        else:
+            raise UnsupportedTimingModeException()
 
     def operate(self):
         self.step_counter = 0
