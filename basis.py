@@ -184,6 +184,7 @@ class System(Entity):
         #self.timing_mode = TimingMode.UnrealTime # режим исчисления модельного времени
         self.timing_mode = TimingMode.RealTime # режим исчисления модельного времени
         self.model_time_speed = 1.0
+        self.do_single_step = False            # сделать один шаг в режиме "Пауза" (для пошагового режима)
 
     def load(self, module_name, dir_path='.'):
         module_full_path = dir_path + '/' + module_name
@@ -221,9 +222,20 @@ class System(Entity):
     def step(self):
         super().step()
 
+        if self.do_single_step:
+            pass
+
+        # когда мы на паузе и при этом не в пошаговом режиме, пропускаем текущий шаг
+        # для тех сущностей, для которых пауза разрешена
+        skip_this_step = False
+        if self.pause and not self.do_single_step:
+            skip_this_step = True
+        if self.do_single_step:
+            self.do_single_step = False
+
         for entity in self.active_entities.copy():
             skip_entity = False
-            if self.pause:
+            if skip_this_step:
                 if entity.may_be_paused:
                     skip_entity = True
             if not skip_entity:
@@ -231,21 +243,21 @@ class System(Entity):
 
         # измерения модельного времени
         if self.timing_mode == TimingMode.UnrealTime:
-            if not self.pause:
+            if not skip_this_step:
                 self._model_time_ns += self.step_time_delta_ns
         elif self.timing_mode == TimingMode.RealTime:
             time_now = time.monotonic_ns()
             if self._step_counter == 0:
                 self._last_time_stamp = time_now  # на первом шаге только делается стартовая отметка времени
             time_delta = 0
-            if not self.pause:
+            if not skip_this_step:
                 time_delta = time_now  - self._last_time_stamp  # время паузы мы просто пропускаем
             self._last_time_stamp = time_now
             self._model_time_ns += time_delta
         else:
             raise UnsupportedTimingModeException()
 
-        if not self.pause:
+        if not skip_this_step:
             self._step_counter += 1
         step_diff = self._step_counter - self._last_step_counter
         time_now = time.monotonic_ns()

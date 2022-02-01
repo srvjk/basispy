@@ -100,7 +100,7 @@ class NetControlWindow(basis.Entity):
             self.system.pause = not self.system.pause
         imgui.same_line()
         if imgui.button(">"):
-            self.system.step_forward_time_delta = 1e9  #TODO сделать настраиваемым
+            self.system.do_single_step = True
 
         imgui.text("System steps: {}".format(self.system.get_step_counter()))
         imgui.text("System fps: {:.2f}".format(self.system.get_fps()))
