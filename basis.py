@@ -19,12 +19,6 @@ class Entity:
         self.entities = set()            # вложенные сущности
         self.active_entities = set()     # active nested entities, i.e. those for which step() should be called
         self.entity_name_index = dict()  # nested entity index with name as a key
-        self.step_divider = 1            # this entity will be activated every step_divider steps
-        self._step_counter = 0           # счетчик шагов индивидуален для каждой сущности
-        self._fps = 0.0                  # мгновенная частота шагов/кадров (кадров в секунду)
-        self._last_step_counter = 0      # последнее сохраненное значение счетчика шагов
-        self._last_time_stamp = 0        # последняя сделанная временная отметка, нс
-        self._fps_probe_interval = int(1e9)  # интервал между замерами FPS, нс
         self.may_be_paused = True        # можно ли ставить эту сущность на паузу
 
     def new(self, class_name, entity_name=""):
@@ -134,28 +128,8 @@ class Entity:
 
         return result
 
-    def set_step_divider(self, div_value):
-        if div_value < 1:
-            return
-        self.step_divider = div_value
-
     def step(self):
-        self._step_counter += 1
-        t_now = time.time_ns()
-        step_diff = self._step_counter - self._last_step_counter
-        t_diff = t_now - self._last_time_stamp
-        if t_diff > self._fps_probe_interval:
-            t_diff_seconds = t_diff / 1e9
-            self._fps = step_diff / t_diff_seconds
-            self._last_step_counter = self._step_counter
-            self._last_time_stamp = t_now
-
-
-    def get_step_counter(self):
-        return self._step_counter
-
-    def get_fps(self):
-        return self._fps
+        pass
 
 
 class OnOffTrigger(Entity):
@@ -198,7 +172,12 @@ class System(Entity):
         self.entity_uuid_index = dict()        # индекс всех сущностей в системе с доступом по UUID
         self.recent_errors = deque(maxlen=10)
         self.should_stop = False
-        self._last_model_time_stamp = 0        # последняя на данный момент отметка модельного времени
+        self._step_counter = 0                 # счетчик шагов индивидуален для каждой сущности
+        self._fps = 0.0                        # мгновенная частота шагов/кадров (кадров в секунду)
+        self._last_step_counter = 0            # последнее сохраненное значение счетчика шагов
+        self._last_time_stamp = 0              # последняя сделанная временная отметка, нс
+        self._fps_probe_interval = int(1e9)    # интервал между замерами FPS, нс
+        self._last_fps_time_stamp = 0          # последняя отметка времени для измерения FPS, нс
         self._model_time_ns = 0                # модельное время (от первого System.step()), нс
         self.pause = False                     # флаг режима "Пауза/пошаговый"
         self.step_time_delta_ns = 1000000      # длительность 1 шага модельного времени, нс
@@ -243,13 +222,12 @@ class System(Entity):
         super().step()
 
         for entity in self.active_entities.copy():
-            if self.step_counter % entity.step_divider == 0:
-                skip_entity = False
-                if self.pause:
-                    if entity.may_be_paused:
-                        skip_entity = True
-                if not skip_entity:
-                    entity.step()
+            skip_entity = False
+            if self.pause:
+                if entity.may_be_paused:
+                    skip_entity = True
+            if not skip_entity:
+                entity.step()
 
         # измерения модельного времени
         if self.timing_mode == TimingMode.UnrealTime:
@@ -257,22 +235,38 @@ class System(Entity):
                 self._model_time_ns += self.step_time_delta_ns
         elif self.timing_mode == TimingMode.RealTime:
             time_now = time.monotonic_ns()
-            if self.step_counter == 1:
-                self._last_model_time_stamp = time_now  # на первом шаге только делается стартовая отметка времени
+            if self._step_counter == 0:
+                self._last_time_stamp = time_now  # на первом шаге только делается стартовая отметка времени
             time_delta = 0
             if not self.pause:
-                time_delta = time_now  - self._last_model_time_stamp  # время паузы мы просто пропускаем
-            self._last_model_time_stamp = time_now
+                time_delta = time_now  - self._last_time_stamp  # время паузы мы просто пропускаем
+            self._last_time_stamp = time_now
             self._model_time_ns += time_delta
         else:
             raise UnsupportedTimingModeException()
 
+        if not self.pause:
+            self._step_counter += 1
+        step_diff = self._step_counter - self._last_step_counter
+        time_now = time.monotonic_ns()
+        t_diff = time_now - self._last_fps_time_stamp
+        if t_diff > self._fps_probe_interval:
+            t_diff_seconds = t_diff / 1e9
+            self._fps = step_diff / t_diff_seconds
+            self._last_step_counter = self._step_counter
+            self._last_fps_time_stamp = time_now
+
     def operate(self):
-        self.step_counter = 0
+        self._step_counter = 0
+        self._fps = 0.0
+        self._last_step_counter = 0
+        self._last_time_stamp = 0
+        self._fps_probe_interval = int(1e9)
+        self._last_fps_time_stamp = 0
+        self._model_time_ns = 0
         self.should_stop = False
 
         while not self.should_stop:
-            self.step_counter += 1
             self.step()
 
         print("System finished operation")
@@ -289,6 +283,12 @@ class System(Entity):
 
     def model_time_s(self):
         return self._model_time_ns / 1e9
+
+    def get_step_counter(self):
+        return self._step_counter
+
+    def get_fps(self):
+        return self._fps
 
 
 def main():
