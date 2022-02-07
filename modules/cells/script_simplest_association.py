@@ -8,7 +8,8 @@ class Scenario(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.net = None
-        self.trigger_pattern_1 = self.new(basis.OnOffTrigger, "Pattern-1")
+        self.trigger_pattern_all_active = self.new(basis.OnOffTrigger, "All active")
+        self.trigger_pattern_square = self.new(basis.OnOffTrigger, "Square")
         self.trigger_pattern_clear = self.new(basis.OnOffTrigger, "Clear")
 
     def init_net(self):
@@ -35,7 +36,7 @@ class Scenario(basis.Entity):
                 continue
             neuron.set_activity(False)
 
-    def do_pattern_1(self):
+    def do_pattern_all_active(self):
         if not self.net:
             return
 
@@ -43,6 +44,36 @@ class Scenario(basis.Entity):
             if not isinstance(neuron, net_core.Neuron):
                 continue
             neuron.set_activity(True)
+
+    def do_pattern_square(self):
+        if not self.net:
+            return
+
+        pattern = [
+            "----------",
+            "-********-",
+            "-*------*-",
+            "-*------*-",
+            "-*------*-",
+            "-*------*-",
+            "-*------*-",
+            "-*------*-",
+            "-********-",
+            "----------"
+        ]
+
+        for neuron in self.net.entities:
+            if not isinstance(neuron, net_core.Neuron):
+                continue
+            x = neuron.pos[0]
+            y = neuron.pos[1]
+            if y < len(pattern):
+                if x < len(pattern[y]):
+                    symbol = pattern[y][x]
+                    if symbol == "-":
+                        neuron.set_activity(False)
+                    if symbol == "*":
+                        neuron.set_activity(True)
 
     def step(self):
         if not self.net:
@@ -54,8 +85,10 @@ class Scenario(basis.Entity):
 
             self.init_net()
 
-        if self.trigger_pattern_1.active:
-            self.do_pattern_1()
+        if self.trigger_pattern_all_active.active:
+            self.do_pattern_all_active()
+        elif self.trigger_pattern_square.active:
+            self.do_pattern_square()
         elif self.trigger_pattern_clear.active:
             self.do_pattern_clear()
         else:
