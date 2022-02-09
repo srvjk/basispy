@@ -47,6 +47,7 @@ class NetControlWindow(basis.Entity):
         self.selected_neurons = set()
         self.show_net = False
         self.show_links = False
+        self.show_areas = False
         self.pause_on = False
 
     def set_net(self, net_id):
@@ -83,6 +84,12 @@ class NetControlWindow(basis.Entity):
         show_net_button_text = "Hide Net" if self.show_net else "Show Net"
         if imgui.button(show_net_button_text):
             self.show_net = not self.show_net
+
+        if self.show_net:
+            imgui.same_line()
+            show_areas_button_text = "Hide Areas" if self.show_areas else "Show Areas"
+            if imgui.button(show_areas_button_text):
+                self.show_areas = not self.show_areas
 
         if imgui.button("Activate Net"):
             self.system.activate(network)
@@ -248,6 +255,7 @@ class NetViewer(basis.Entity):
         self.inactive_neuron_color = glm.vec3(0.2, 0.2, 0.2)
         self.active_neuron_color = glm.vec3(1.0, 1.0, 0.2)
         self.selection_frame_color = glm.vec3(1.0, 0.2, 0.2)
+        self.net_area_frame_color = glm.vec3(0.2, 1.0, 0.2)
 
         # переменные состояния для пользовательского интерфейса ImGui
         self.selected_subnet_number = 0  # номер текущей выбранной подсети
@@ -296,11 +304,13 @@ class NetViewer(basis.Entity):
         excitatory_link_color_base = glm.vec3(1.0, 0.1, 0.1)  # базовый цвет для возбуждающей сввзи
         inhibitory_link_color_base = glm.vec3(0.1, 0.1, 1.0)  # базовый цвет для тормозящей связи
 
+        neuron_plus_margin = self.neuron_size + self.margin
+
         for neuron in self.net.entities:
             if not isinstance(neuron, net_core.Neuron):
                 continue
-            x = x0 + neuron.pos[0] * (self.neuron_size + self.margin)
-            y = y0 + neuron.pos[1] * (self.neuron_size + self.margin)
+            x = x0 + neuron.pos[0] * neuron_plus_margin
+            y = y0 + neuron.pos[1] * neuron_plus_margin
             color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
             polygon.draw(glm.vec2(x, y), glm.vec2(self.neuron_size, self.neuron_size),
                          0.0, color, True)
@@ -314,11 +324,11 @@ class NetViewer(basis.Entity):
             for neuron_uuid in self.net_control_window.selected_neurons:
                 neuron = self.net.get_entity_by_id(neuron_uuid)
                 if neuron:
-                    x = x0 + neuron.pos[0] * (self.neuron_size + self.margin)
-                    y = y0 + neuron.pos[1] * (self.neuron_size + self.margin)
+                    x = x0 + neuron.pos[0] * neuron_plus_margin
+                    y = y0 + neuron.pos[1] * neuron_plus_margin
                     for link in neuron.out_links:
-                        x_dst = (link.dst_neuron.pos[0] - neuron.pos[0]) * (self.neuron_size + self.margin)
-                        y_dst = (link.dst_neuron.pos[1] - neuron.pos[1]) * (self.neuron_size + self.margin)
+                        x_dst = (link.dst_neuron.pos[0] - neuron.pos[0]) * neuron_plus_margin
+                        y_dst = (link.dst_neuron.pos[1] - neuron.pos[1]) * neuron_plus_margin
                         neur_half_size = self.neuron_size / 2.0
                         line.set_points([
                             glm.vec2(neur_half_size, neur_half_size),
@@ -328,6 +338,16 @@ class NetViewer(basis.Entity):
                         link_base_color = excitatory_link_color_base if link.sign > 0 else inhibitory_link_color_base
 
                         line.draw(glm.vec2(x, y), glm.vec2(1.0, 1.0), 0.0, link_base_color, False)
+
+        if self.net_control_window.show_areas:
+            for area in self.net.areas:
+                rect = area.get_bounding_rect()
+                x = x0 + rect[0] * neuron_plus_margin
+                y = y0 + rect[1] * neuron_plus_margin
+                width = (rect[2] - rect[0]) * neuron_plus_margin
+                height = (rect[3] - rect[1]) * neuron_plus_margin
+                color = self.net_area_frame_color
+                polygon.draw(glm.vec2(x, y), glm.vec2(width, height), 0.0, color, False)
 
     def step(self):
         if glfw.window_should_close(self.window):

@@ -13,16 +13,56 @@ class Scenario(basis.Entity):
         self.trigger_pattern_clear = self.new(basis.OnOffTrigger, "Clear")
 
     def init_net(self):
-        n = 10
         neuron_index = 0
-        for y in range(n):
-            for x in range(n):
+
+        # создаем и заполняем первую "сенсорную" зону
+        ar1 = self.net.new_area('Sensory1')
+
+        n = 10
+        x0, y0 = 0, 0
+        for row in range(n):
+            y = y0 + row
+            for col in range(n):
+                x = x0 + col
                 neuron = self.net.new(net_core.Neuron)
                 neuron.pos = [x, y]
                 self.net.spatial_index.insert(neuron_index, (x, y, 0, x, y, 0), neuron.uuid)
+                ar1.add(neuron)
                 neuron_index += 1
 
-        self.net.init_connections(pattern='random')
+        # создаем и заполняем вторую "сенсорную" зону
+        ar2 = self.net.new_area('Sensory2')
+
+        n = 10
+        x0, y0 = 50, 0
+        for row in range(n):
+            y = y0 + row
+            for col in range(n):
+                x = x0 + col
+                neuron = self.net.new(net_core.Neuron)
+                neuron.pos = [x, y]
+                self.net.spatial_index.insert(neuron_index, (x, y, 0, x, y, 0), neuron.uuid)
+                ar2.add(neuron)
+                neuron_index += 1
+
+
+        # создаем и заполняем "ассоциативную" зону
+        ar3 = self.net.new_area('Associative')
+
+        n = 4
+        x0, y0 = 30, 20
+        for row in range(n):
+            y = y0 + row
+            for col in range(n):
+                x = x0 + col
+                neuron = self.net.new(net_core.Neuron)
+                neuron.pos = [x, y]
+                self.net.spatial_index.insert(neuron_index, (x, y, 0, x, y, 0), neuron.uuid)
+                ar3.add(neuron)
+                neuron_index += 1
+
+
+        #self.net.init_connections(pattern='random')
 
     def do_pattern_default(self):
         pass

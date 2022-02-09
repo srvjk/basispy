@@ -97,6 +97,70 @@ class Neuron(basis.Entity):
         self.post_mediator_quantity = self.pre_mediator_quantity
 
 
+class NetArea(basis.Entity):
+    """
+    Область (зона) нейронной сети.
+    В общем случае не имеет конкретной формы и определяется только своим содержимым.
+    Может включать как непосредственно нейроны, так и другие области, образуя иерархию.
+    """
+    def __init__(self, system):
+        super().__init__(system)
+        self.content = set()  # множество идентификаторов сущностей, входящих в область
+        self.bounding_rect = [0, 0, 0, 0]
+        self.geometry_changed = False
+
+    def add(self, entity):
+        """
+        Добавить сущность в данную область.
+        :param entity: добавляемая сущность
+        :return:
+        """
+        self.content.add(entity.uuid)
+        self.geometry_changed = True
+
+    def contains(self, entity):
+        """
+        Проверить вхождение сущности в данную область. Сущностью обычно является либо нейрон, либо другая область.
+        :param entity: сущность, для которой проверяется вхождение в данную область
+        :return: True, если сущность входит в область, иначе False
+        """
+        if entity.uuid in self.content:
+            return True
+        return False
+
+    def get_bounding_rect(self):
+        if self.geometry_changed:
+            self.update_geometry()
+        return self.bounding_rect
+
+    def update_geometry(self):
+        rect = None
+        for uid in self.content:
+            ent = self.system.get_entity_by_id(uid)
+            if ent:
+                if isinstance(ent, Neuron):
+                    p = ent.pos
+                    if rect:
+                        rect[0] = min(rect[0], p[0])
+                        rect[1] = min(rect[1], p[1])
+                        rect[2] = max(rect[2], p[0])
+                        rect[3] = max(rect[3], p[1])
+                    else:
+                        rect = [p[0], p[1], p[0], p[1]]
+                elif isinstance(ent, NetArea):
+                    if ent is self:
+                        raise basis.BasisException  #TODO придумать более специальное исключение
+                    subrect = ent.get_bounding_rect()
+                    if rect:
+                        rect[0] = min(rect[0], subrect[0])
+                        rect[1] = min(rect[1], subrect[1])
+                        rect[2] = max(rect[2], subrect[2])
+                        rect[3] = max(rect[3], subrect[3])
+                    else:
+                        rect = [subrect[0], subrect[1], subrect[2], subrect[3]]
+        self.bounding_rect = [rect[0], rect[1], rect[2] + 1, rect[3] + 1]
+        self.geometry_changed = False
+
 class Net(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
@@ -104,6 +168,12 @@ class Net(basis.Entity):
         p = index.Property()
         p.dimension = 3
         self.spatial_index = index.Index(properties=p)
+        self.areas = list()
+
+    def new_area(self, name):
+        area = self.new(NetArea, name)
+        self.areas.append(area)
+        return area
 
     def init_connections(self, pattern):
         excitatory_links_percent = 80  # процент возбуждающих связей (остальные - тормозящие)
