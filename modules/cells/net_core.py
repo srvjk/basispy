@@ -175,6 +175,35 @@ class Net(basis.Entity):
         self.areas.append(area)
         return area
 
+    def connect_areas(self, src_area, dst_area):
+        excitatory_links_percent = 100  # процент возбуждающих связей (остальные - тормозящие)
+        max_abs_weight = 10.0           # максимальное по абсолютной величине значение веса связи
+
+        for src_id in src_area.content:
+            src = self.system.get_entity_by_id(src_id)
+            if not isinstance(src, Neuron):
+                continue
+
+            for dst_id in dst_area.content:
+                dst = self.system.get_entity_by_id(dst_id)
+                if not isinstance(dst, Neuron):
+                    continue
+
+                link = Link()
+                link.src_neuron = src
+                link.dst_neuron = dst
+
+                # выбираем вес связи случайным образом с учётом максимального:
+                link.weight = random.uniform(0, max_abs_weight)
+
+                # выбираем тип связи (возбуждающая или тормозящая) с учетом заданного соотношения:
+                rnd = random.randint(0, 100)
+                if rnd < excitatory_links_percent:
+                    link.sign = 1
+                else:
+                    link.sign = -1
+                src.out_links.append(link)
+
     def init_connections(self, pattern):
         excitatory_links_percent = 80  # процент возбуждающих связей (остальные - тормозящие)
         max_abs_weight = 10.0          # максимальное по абсолютной величине значение веса связи

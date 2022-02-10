@@ -61,7 +61,9 @@ class Scenario(basis.Entity):
                 ar3.add(neuron)
                 neuron_index += 1
 
-
+        # устанавливаем связи
+        self.net.connect_areas(ar1, ar3)
+        self.net.connect_areas(ar2, ar3)
         #self.net.init_connections(pattern='random')
 
     def do_pattern_default(self):
