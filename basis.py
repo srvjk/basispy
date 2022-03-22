@@ -6,6 +6,13 @@ import time
 from enum import Enum
 
 
+def first_of(lst):
+    if not lst:
+        return None
+
+    return lst[0]
+
+
 class BasisException(Exception):
     pass
 
@@ -36,6 +43,12 @@ class Entity:
         self.system.report_error("unknown error")
         return None
 
+    def self_delete(self):
+        if self.parent:
+            self.parent.remove_entity(self)
+        if self.system:
+            self.system.unregister_entity(self)
+
     def add_entity(self, entity) -> (bool, str):
         if not isinstance(entity, Entity):
             self.system.report_error("not an Entity")
@@ -56,6 +69,17 @@ class Entity:
         self.system.register_entity(entity)  # заносим сущность в общесистемный реестр
 
         return True
+
+    def remove_entity(self, entity):
+        if not isinstance(entity, Entity):
+            self.system.report_error("not an Entity")
+            return
+        if entity in self.active_entities:
+            self.active_entities.remove(entity)
+        if entity.name:
+            if entity.name in self.entity_name_index:
+                del self.entity_name_index[entity.name]
+        self.entities.remove(entity)
 
     def get_entity_by_id(self, entity_uuid):
         return self.system.entity_uuid_index.get(entity_uuid)
@@ -107,6 +131,11 @@ class Entity:
 
         self.entity_name_index[new_name] = entity
 
+        return True
+
+    def is_empty(self):
+        if self.entities:
+            return False
         return True
 
     def print_entities(self):
@@ -217,7 +246,8 @@ class System(Entity):
         self.entity_uuid_index[entity.uuid] = entity
 
     def unregister_entity(self, entity):
-        pass
+        if entity.uuid in self.entity_uuid_index:
+           del self.entity_uuid_index[entity.uuid]
 
     def step(self):
         super().step()

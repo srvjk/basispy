@@ -21,6 +21,9 @@ def test1() -> bool:
 
     return True
 
+def test2() -> bool:
+    #TODO Тест на удаление сущностей
+    return False
 
 def test_all() -> bool:
     passed = True
@@ -28,6 +31,7 @@ def test_all() -> bool:
 
     # add all unit tests here:
     tests.append(test1)
+    tests.append(test2)
 
     # do all tests:
     print("*** Testing ***")
