@@ -36,41 +36,37 @@ class Entity:
     #     my_copy.name = self.name     # имя копии совпадает с именем оригинала
     #     my_copy.system =
 
-    def new(self, class_name, entity_name=""):
-        item = class_name(self.system)
-        if not item:
-            self.system.report_error("'{}' is not a class name".format(class_name))
-            return None
-        if not isinstance(item, Entity):
-            self.system.report_error("not an Entity")
-            return None
-        item.name = entity_name
-        if self.add_entity(item):
-            return item
+    def clear(self):
+        self.entity_name_index.clear()
+        self.active_entities.clear()
+        self.entities.clear()
 
-        self.system.report_error("unknown error")
-        return None
-
-    def clone(self, entity):
+    def clone(self):
         """
-        Создать точную копию дочерней сущности.
-        :param entity:
-        :return:
+        Создать свою точную копию.
+        :return: сущность-копия
         """
-        new_entity = self.new(type(entity), entity.name + '*')
+        # создаём новую сущность того же типа, что и данная, и регистрируем её в системе
+        new_entity = self.system.new(type(self), self.name + '*')
         # далее надо перебрать все элементы ДАННЫХ и скопировать их значения, кроме entities, active_entities и
         # entity_name_index, для которых должна быть отдельная процедура
-        members = inspect.getmembers(entity)
-        for k, v in members.items():
-            if inspect.isfunction(v):
+        for k, v in inspect.getmembers(self):
+            if k.startswith('__'):  # пропускаем системные атрибуты
+                continue
+            if inspect.ismethod(v):
+                continue
+            if k in ('uuid', 'name'):
                 continue
             if k in ('entities', 'active_entities', 'entity_name_index'):
                 continue
             setattr(new_entity, k, v)
 
-        # теперь копируем entities
-        # for child in entity.entities:
-        #     new_entity =
+        # теперь копируем вложенные сущности
+        for child in self.entities:
+            new_child = child.clone()
+            new_entity.add_entity(new_child)
+            if child in self.active_entities:
+                new_entity.activate(new_child)
 
         return new_entity
 
@@ -97,8 +93,6 @@ class Entity:
         if entity.name:
             self.entity_name_index[entity.name] = entity
 
-        self.system.register_entity(entity)  # заносим сущность в общесистемный реестр
-
         return True
 
     def remove_entity(self, entity):
@@ -111,6 +105,20 @@ class Entity:
             if entity.name in self.entity_name_index:
                 del self.entity_name_index[entity.name]
         self.entities.remove(entity)
+
+    def add_new(self, class_name, entity_name=""):
+        """
+        Создать новую сущность и добавить её в список дочерних.
+        :param class_name:
+        :param entity_name:
+        :return:
+        """
+        ent = self.system.new(class_name, entity_name)
+        if not ent:
+            return None
+        self.add_entity(ent)
+
+        return ent
 
     def get_entity_by_id(self, entity_uuid):
         return self.system.entity_uuid_index.get(entity_uuid)
@@ -246,6 +254,11 @@ class System(Entity):
         self.model_time_speed = 1.0
         self.do_single_step = False            # сделать один шаг в режиме "Пауза" (для пошагового режима)
 
+    def clear(self):
+        super().clear()
+        self.entity_uuid_index.clear()
+        self.recent_errors.clear()
+
     def load(self, module_name, dir_path='.'):
         module_full_path = dir_path + '/' + module_name
 
@@ -264,6 +277,26 @@ class System(Entity):
         #         continue
 
         return module
+
+    def new(self, class_name, entity_name=""):
+        """
+        Создать новую сущность заданного класса и зарегистрировать её в системе.
+        :param class_name:
+        :param entity_name:
+        :return:
+        """
+        item = class_name(self.system)
+        if not item:
+            self.system.report_error("'{}' is not a class name".format(class_name))
+            return None
+        if not isinstance(item, Entity):
+            self.system.report_error("not an Entity")
+            return None
+        item.name = entity_name
+
+        self.system.register_entity(item)
+
+        return item
 
     def register_entity(self, entity):
         old = self.entity_uuid_index.get(entity.uuid, None)

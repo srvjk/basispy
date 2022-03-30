@@ -66,7 +66,7 @@ class FrameSequence(basis.Entity):
         Добавить новый кадр. Если кадров слишком много, самый старый будет удалён.
         :return: только что созданный кадр
         """
-        frame = self.new(Frame)
+        frame = self.add_new(Frame)
         self.frames.insert(0, frame)  # в начало
         if len(self.frames) > self.max_capacity:
             self.frames.pop()
@@ -90,11 +90,11 @@ class Agent(basis.Entity):
         self.board = None
         self.position = glm.vec2(0, 0)
         self.orientation = glm.vec2(1, 0)
-        self.short_memory = self.new(FrameSequence) # кратковременная память - последовательность кадров
+        self.short_memory = self.add_new(FrameSequence) # кратковременная память - последовательность кадров
         self.short_memory.max_capacity = 100
         self.long_memory = list()  # долговременная память - набор последовательностей кадров
         self.long_memory_capacity = 10  # ёмкость долговременной памяти (кол-во хранимых последовательностей кадров)
-        self.current_frame = self.new(Frame)  # текущий (рабочий) кадр
+        self.current_frame = self.add_new(Frame)  # текущий (рабочий) кадр
 
     def set_board(self, board):
         self.board = board
@@ -179,7 +179,7 @@ class Agent(basis.Entity):
         prev_frame.make_trace_of(self.current_frame)
 
         if self.current_frame.is_empty():
-            boredom = self.current_frame.new(Boredom)
+            boredom = self.current_frame.add_new(Boredom)
             if boredom:
                 self.current_frame.activate(boredom)
 
@@ -256,7 +256,7 @@ class Board(basis.Entity):
         for i in range(num_obstacles):
             x = random.randrange(0, self.size)
             y = random.randrange(0, self.size)
-            obstacle = self.new(Obstacle)
+            obstacle = self.add_new(Obstacle)
             obstacle.position = glm.vec2(x, y)
             self.obstacles.append(obstacle)
             self.cells[y][x].objects.append(obstacle)  # добавляем объект в матрицу ячеек доски
