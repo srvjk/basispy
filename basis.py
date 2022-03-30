@@ -4,6 +4,7 @@ from collections import deque
 import uuid
 import time
 from enum import Enum
+import inspect
 
 
 def first_of(lst):
@@ -24,9 +25,16 @@ class Entity:
         self.system = system             # ссылка на систему
         self.parent = None               # ссылка на родительскую сущность
         self.entities = set()            # вложенные сущности
-        self.active_entities = set()     # active nested entities, i.e. those for which step() should be called
-        self.entity_name_index = dict()  # nested entity index with name as a key
+        self.active_entities = set()     # перечень активных сущностей (т.е. таких, для которых вызывается step())
+        self.entity_name_index = dict()  # индекс вложенных сущностей с доступом по имени
         self.may_be_paused = True        # можно ли ставить эту сущность на паузу
+
+    # def __deepcopy__(self, memo):
+    #     my_copy = type(self)()
+    #     memo[id(self)] = my_copy
+    #     my_copy.uuid = uuid.uuid4()  # у копии будет новый uuid
+    #     my_copy.name = self.name     # имя копии совпадает с именем оригинала
+    #     my_copy.system =
 
     def new(self, class_name, entity_name=""):
         item = class_name(self.system)
@@ -42,6 +50,29 @@ class Entity:
 
         self.system.report_error("unknown error")
         return None
+
+    def clone(self, entity):
+        """
+        Создать точную копию дочерней сущности.
+        :param entity:
+        :return:
+        """
+        new_entity = self.new(type(entity), entity.name + '*')
+        # далее надо перебрать все элементы ДАННЫХ и скопировать их значения, кроме entities, active_entities и
+        # entity_name_index, для которых должна быть отдельная процедура
+        members = inspect.getmembers(entity)
+        for k, v in members.items():
+            if inspect.isfunction(v):
+                continue
+            if k in ('entities', 'active_entities', 'entity_name_index'):
+                continue
+            setattr(new_entity, k, v)
+
+        # теперь копируем entities
+        # for child in entity.entities:
+        #     new_entity =
+
+        return new_entity
 
     def self_delete(self):
         if self.parent:
