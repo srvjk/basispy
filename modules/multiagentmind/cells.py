@@ -37,16 +37,16 @@ class Frame(basis.Entity):
     """
     def __init__(self, system):
         super().__init__(system)
-        self.ent_class_names = list()
 
     def make_trace_of(self, frame):
         """
-        Создать в данном кадре 'след' другого кадра (в простейшем случае - запомнить имена классов сущностей)
-        :param frame:
+        Создать в данном кадре 'след' другого кадра (в простейшем случае делаем копии всех сущностей).
+        :param frame: кадр, который мы копируем
         :return:
         """
         for ent in frame.entities:
-            self.ent_class_names.append(type(ent).__name__)
+            ent_copy = ent.clone()
+            self.add_entity(ent_copy)
 
 
 class FrameSequence(basis.Entity):
@@ -69,7 +69,10 @@ class FrameSequence(basis.Entity):
         frame = self.add_new(Frame)
         self.frames.insert(0, frame)  # в начало
         if len(self.frames) > self.max_capacity:
-            self.frames.pop()
+            oldest_frame = self.frames.pop()
+            if oldest_frame:
+                oldest_frame.clear()
+                oldest_frame.remove()
 
         return frame
 
@@ -186,7 +189,7 @@ class Agent(basis.Entity):
         boredom = basis.first_of(self.current_frame.get_entities_by_type(Boredom))
         if boredom:
             self.do_step()
-            boredom.self_delete()
+            #boredom.remove()
 
         # запомнить недавнюю последовательность кадров
         #self.short_to_long_memory()

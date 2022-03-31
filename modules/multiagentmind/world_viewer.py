@@ -57,6 +57,16 @@ class WorldViewer(basis.Entity):
         poly_shader.use()
         poly_shader.set_matrix4("projection", projection)
 
+    def display_frame(self, frame):
+        """
+        Отобразить информацию по одному временнОму кадру
+        :return:
+        """
+        for ent in frame.entities:
+            name = ent.name if ent.name else 'noname'
+            text = "{} ({}, {})".format(str(ent.uuid), ent.qual_class_name(), name)
+            imgui.text(text)
+
     def draw_info_window(self):
         imgui.begin("Info")
 
@@ -67,13 +77,18 @@ class WorldViewer(basis.Entity):
                 self.agent = basis.first_of(self.system.get_entities_by_type_recursively(cells.Agent))
 
         if self.agent:
+            imgui.text("Entities total: {}".format(len(self.system.entity_uuid_index)))
             imgui.text("Agent found")
             imgui.text("Short memory: {} items".format(self.agent.short_memory.size()))
+
+            imgui.text_colored("Current frame:", 1.0, 1.0, 0.0)
+            if self.agent.current_frame:
+                self.display_frame(self.agent.current_frame)
+
             imgui.text_colored("Last frame:", 0.0, 1.0, 1.0)
             last_frame = self.agent.short_memory.most_recent_frame()
             if last_frame:
-                for name in last_frame.ent_class_names:
-                    imgui.text(name)
+                self.display_frame(last_frame)
         else:
             imgui.text("No agents found!")
 

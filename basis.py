@@ -29,17 +29,20 @@ class Entity:
         self.entity_name_index = dict()  # индекс вложенных сущностей с доступом по имени
         self.may_be_paused = True        # можно ли ставить эту сущность на паузу
 
-    # def __deepcopy__(self, memo):
-    #     my_copy = type(self)()
-    #     memo[id(self)] = my_copy
-    #     my_copy.uuid = uuid.uuid4()  # у копии будет новый uuid
-    #     my_copy.name = self.name     # имя копии совпадает с именем оригинала
-    #     my_copy.system =
+    def qual_class_name(self):
+        """
+        Возвращает квалифицированное имя класса сущности (включая имя модуля).
+        :return: строковое представление полного имени класса
+        """
+        return "{}.{}".format(self.__module__, self.__class__.__name__)
 
     def clear(self):
         self.entity_name_index.clear()
         self.active_entities.clear()
-        self.entities.clear()
+        while self.entities:
+            ent = self.entities.pop()
+            ent.clear()
+            self.system.unregister_entity(ent)
 
     def clone(self):
         """
@@ -47,7 +50,10 @@ class Entity:
         :return: сущность-копия
         """
         # создаём новую сущность того же типа, что и данная, и регистрируем её в системе
-        new_entity = self.system.new(type(self), self.name + '*')
+        new_name = ""
+        if self.name:
+            new_name = self.name + '*'
+        new_entity = self.system.new(type(self), new_name)
         # далее надо перебрать все элементы ДАННЫХ и скопировать их значения, кроме entities, active_entities и
         # entity_name_index, для которых должна быть отдельная процедура
         for k, v in inspect.getmembers(self):
@@ -70,7 +76,7 @@ class Entity:
 
         return new_entity
 
-    def self_delete(self):
+    def remove(self):
         if self.parent:
             self.parent.remove_entity(self)
         if self.system:
@@ -128,7 +134,7 @@ class Entity:
         return self.entity_name_index.get(name)
 
     def get_entities_by_name_recursively(self, name):
-        """ Найти рекурсивно все вложенные сущности c заданным коротким именем """
+        """ Найти рекурсивно все вложенные сущности c заданным именем """
         result = list()
         for ent in self.entities:
             if ent.name == name:
