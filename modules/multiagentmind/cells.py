@@ -31,6 +31,13 @@ class Boredom(basis.Entity):
         super().__init__(system)
 
 
+class ObstacleAhead(basis.Entity):
+    """
+    Событие 'впереди препятствие'.
+    """
+    def __init__(self, system):
+        super().__init__(system)
+
 class Frame(basis.Entity):
     """
     Кадр - основой структурный элемент памяти агента.
@@ -144,19 +151,11 @@ class Agent(basis.Entity):
         x_ahead = int(self.position[0] + self.orientation[0])
         y_ahead = int(self.position[1] + self.orientation[1])
 
-        obstacle_sensor_active = False
         if self.board.is_obstacle(x_ahead, y_ahead):
-            obstacle_sensor_active = True
-        #self.net.layers[0].neurons[0].set_activity(obstacle_sensor_active)
-
-        '''
-        front_sensor_color = self.board.get_cell_color(
-            self.position[0] + self.orientation[0], self.position[1] + self.orientation[1])
-        sensor_active = False
-        if front_sensor_color != self.board.back_color and front_sensor_color != self.board.color_no_color:
-            sensor_active = True
-        self.net.layers[0].neurons[0].set_activity(sensor_active)
-        '''
+            if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
+                self.current_frame.add_new(ObstacleAhead)
+        else:
+            self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
 
         choice = random.choice(list(AgentAction))
         if choice == AgentAction.NoAction:

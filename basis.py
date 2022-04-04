@@ -13,6 +13,20 @@ def first_of(lst):
 
     return lst[0]
 
+def short_class_name(self):
+    """
+    Возвращает короткое имя класса (не включая имя модуля).
+    :return: строковое представление короткого имени класса
+    """
+    return self.__class__.__name__
+
+def qual_class_name(self):
+    """
+    Возвращает квалифицированное имя класса (включая имя модуля).
+    :return: строковое представление полного имени класса
+    """
+    return "{}.{}".format(self.__module__, self.__class__.__name__)
+
 
 class BasisException(Exception):
     pass
@@ -28,13 +42,6 @@ class Entity:
         self.active_entities = set()     # перечень активных сущностей (т.е. таких, для которых вызывается step())
         self.entity_name_index = dict()  # индекс вложенных сущностей с доступом по имени
         self.may_be_paused = True        # можно ли ставить эту сущность на паузу
-
-    def qual_class_name(self):
-        """
-        Возвращает квалифицированное имя класса сущности (включая имя модуля).
-        :return: строковое представление полного имени класса
-        """
-        return "{}.{}".format(self.__module__, self.__class__.__name__)
 
     def clear(self):
         self.entity_name_index.clear()
@@ -201,6 +208,17 @@ class Entity:
         result = self.system.on_entity_renamed(self, old_name, new_name)
 
         return result
+
+    def has_one_of(self, condition):
+        for ent in self.entities:
+            if condition(ent):
+                return True
+        return False
+
+    def remove_all(self, condition):
+        for ent in self.entities.copy():
+            if condition(ent):
+                self.remove_entity(ent)
 
     def step(self):
         pass

@@ -64,7 +64,7 @@ class WorldViewer(basis.Entity):
         """
         for ent in frame.entities:
             name = ent.name if ent.name else 'noname'
-            text = "{} ({}, {})".format(str(ent.uuid), ent.qual_class_name(), name)
+            text = "{} ({}, {})".format(str(ent.uuid), basis.qual_class_name(ent), name)
             imgui.text(text)
 
     def draw_info_window(self):
