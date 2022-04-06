@@ -38,6 +38,15 @@ class ObstacleAhead(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
 
+
+class ObstacleCollision(basis.Entity):
+    """
+    Событие 'столкновения' c препятствием.
+    """
+    def __init__(self, system):
+        super().__init__(system)
+
+
 class Frame(basis.Entity):
     """
     Кадр - основой структурный элемент памяти агента.
@@ -151,11 +160,19 @@ class Agent(basis.Entity):
         x_ahead = int(self.position[0] + self.orientation[0])
         y_ahead = int(self.position[1] + self.orientation[1])
 
+        # проверка на наличие препятствия прямо по курсу
         if self.board.is_obstacle(x_ahead, y_ahead):
             if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
                 self.current_frame.add_new(ObstacleAhead)
         else:
             self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
+
+        # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
+        if self.board.is_obstacle(int(self.position[0]), int(self.position[1])):
+            if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
+                self.current_frame.add_new(ObstacleCollision)
+        else:
+            self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
 
         choice = random.choice(list(AgentAction))
         if choice == AgentAction.NoAction:
