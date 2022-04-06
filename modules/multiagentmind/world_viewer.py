@@ -14,6 +14,7 @@ class WorldViewer(basis.Entity):
 
     def __init__(self, system):
         super().__init__(system)
+        self.may_be_paused = False
         self.window = init_glfw()
         imgui.create_context()
         self.render_engine = GlfwRenderer(self.window)
@@ -67,8 +68,46 @@ class WorldViewer(basis.Entity):
             text = "{} ({}, {})".format(str(ent.uuid), basis.qual_class_name(ent), name)
             imgui.text(text)
 
+    def draw_control_window(self):
+        imgui.begin("Control")
+
+        imgui.text("Step {}".format(self.system.get_step_counter()))
+
+        if self.system.timing_mode == basis.TimingMode.UnrealTime:
+            imgui.text("Non-real time mode")
+        elif self.system.timing_mode == basis.TimingMode.RealTime:
+            imgui.text("Real time mode")
+
+        imgui.text("Model time {:.3f} s (speed = {:.2f})".format(
+            self.system.model_time_s(),
+            self.system.model_time_speed
+        ))
+        imgui.same_line()
+        if imgui.button("Faster"):
+            self.system.model_time_speed *= 1.5
+        imgui.same_line()
+        if imgui.button("Slower"):
+            self.system.model_time_speed /= 1.5
+        imgui.same_line()
+        if imgui.button("1 : 1"):
+            self.system.model_time_speed = 1.0
+
+        pause_button_text = "Resume" if self.system.pause else "Pause"
+        if imgui.button(pause_button_text):
+            self.system.pause = not self.system.pause
+        imgui.same_line()
+        if imgui.button(">"):
+            self.system.do_single_step = True
+
+        imgui.text("System steps: {}".format(self.system.get_step_counter()))
+        imgui.text("System fps: {:.2f}".format(self.system.get_fps()))
+
+        imgui.end()
+
     def draw_info_window(self):
         imgui.begin("Info")
+
+        imgui.text("Step {}".format(self.system.get_step_counter()))
 
         if not self.agent:
             if self.agent_id:
@@ -79,6 +118,8 @@ class WorldViewer(basis.Entity):
         if self.agent:
             imgui.text("Entities total: {}".format(len(self.system.entity_uuid_index)))
             imgui.text("Agent found")
+            imgui.text("Agent pos.: ({}, {})".format(int(self.agent.position.x), int(self.agent.position.y)))
+            imgui.text("Agent ort.: ({}, {})".format(int(self.agent.orientation.x), int(self.agent.orientation.y)))
             imgui.text("Short memory: {} items".format(self.agent.short_memory.size()))
 
             imgui.text_colored("Current frame:", 1.0, 1.0, 0.0)
@@ -93,19 +134,6 @@ class WorldViewer(basis.Entity):
             imgui.text("No agents found!")
 
         imgui.end()
-
-    '''
-    def draw_board(self):
-        imgui.begin("Board")
-
-        imgui.text("Some other text")
-
-        draw_list = imgui.get_window_draw_list()
-        wx, wy = imgui.get_window_position()
-        draw_list.add_circle(wx + 100, wy + 60, 30, imgui.get_color_u32_rgba(1, 1, 0, 1), thickness=1)
-
-        imgui.end()
-    '''
 
     def window_size_callback(self, window, width, height):
         self.win_width = width
@@ -130,6 +158,7 @@ class WorldViewer(basis.Entity):
         imgui.new_frame()
 
         self.draw_info_window()
+        self.draw_control_window()
 
         if self.board:
             board_image_size = min(self.win_width, self.win_height)
