@@ -28,6 +28,7 @@ class WorldViewer(basis.Entity):
         gogl.resource_manager.load_shader("polygon", "polygon.vs", "polygon.fs")
 
         self.renderer = None
+        self.text_renderer = None
         self.on_window_resize()
 
         # alpha blending (for transparency, semi-transparency, etc.)
@@ -53,6 +54,9 @@ class WorldViewer(basis.Entity):
         sprite_shader.set_integer("image", 0)
         sprite_shader.set_matrix4("projection", projection)
         self.renderer = gogl.SpriteRenderer(sprite_shader)
+
+        self.text_renderer = gogl.TextRenderer(sprite_shader)  # TODO а здесь ли надо это делать?
+        self.text_renderer.make_face("res/TerminusTTF-4.46.0.ttf", 48, 64)
 
         poly_shader = gogl.resource_manager.get_shader("polygon")
         poly_shader.use()
@@ -168,6 +172,8 @@ class WorldViewer(basis.Entity):
                             (board_pos_x, board_pos_y),
                             (board_image_size, board_image_size)
                             )
+
+        self.text_renderer.draw_text("Hello", 20, 20, glm.vec3(1.0, 0.0, 1.0))
         # self.draw_board()
 
         imgui.render()

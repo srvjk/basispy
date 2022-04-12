@@ -2,6 +2,7 @@ import OpenGL.GL as gl
 import glm
 from PIL import Image
 from numpy import asarray
+import freetype
 
 
 class Shader:
@@ -273,6 +274,82 @@ class Polygon:
             gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
         #gl.glDrawArrays(gl.GL_POINTS, 0, self.vertex_count)
         gl.glBindVertexArray(0)
+
+
+class TextRenderer:
+    def __init__(self, shader):
+        self.vao = None
+        self.shader = shader
+        self.init_render_data()
+        self.textures = dict()
+        self.char_width = 1
+        self.char_height = 1
+
+    def init_render_data(self):
+        vertices = [
+            # 1st triangle
+            # pos     tex
+            0.0, 1.0, 0.0, 1.0,
+            1.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 0.0,
+            # 2nd triangle
+            # pos     tex
+            0.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 1.0, 1.0,
+            1.0, 0.0, 1.0, 0.0
+        ]
+
+        self.vao = gl.glGenVertexArrays(1)
+        vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, len(vertices) * 4, (gl.GLfloat * len(vertices))(*vertices),
+                        gl.GL_STATIC_DRAW)
+        gl.glBindVertexArray(self.vao)
+
+        gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None)
+        gl.glEnableVertexAttribArray(0)
+
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+
+    def make_face(self, face_file_path, char_width, char_height):
+        self.char_width = char_width
+        self.char_height = char_height
+        face = freetype.Face(face_file_path)
+        face.set_char_size(self.char_width * self.char_height)
+
+        for ch in range(0, 128):
+            face.load_char(ch)
+            bitmap = face.glyph.bitmap
+
+            texture = Texture()
+            texture.internal_format = gl.GL_RGBA
+            texture.image_format = gl.GL_RGBA
+            texture.generate(self.char_width, self.char_height, bitmap.buffer)
+            self.textures[ch] = texture
+
+    def draw_text(self, text, x, y, color):
+        model = glm.mat4(1.0)
+        self.shader.use()
+        self.shader.set_vector3f("spriteColor", color)
+
+        x0 = x
+        y0 = y
+
+        for ch in text:
+            model = glm.translate(model, glm.vec3(x0, y0, 0.0))
+            model = glm.scale(model, glm.vec3(self.char_width, self.char_height, 1.0))
+            self.shader.set_matrix4("model", model)
+
+            gl.glActiveTexture(gl.GL_TEXTURE0)
+            texture = self.textures[ch]
+            texture.bind()
+
+            gl.glBindVertexArray(self.vao)
+            gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
+            gl.glBindVertexArray(0)
+
+            x0 += self.char_width
 
 
 resource_manager = ResourceManager()
