@@ -48,23 +48,25 @@ class WorldViewer(basis.Entity):
         glfw.make_context_current(self.window)
 
         gl.glViewport(0, 0, self.win_width, self.win_height)
-        projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
 
         sprite_shader = gogl.resource_manager.get_shader("sprite")
         sprite_shader.use()
         sprite_shader.set_integer("image", 0)
+        projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
         sprite_shader.set_matrix4("projection", projection)
         self.renderer = gogl.SpriteRenderer(sprite_shader)
 
         text_shader = gogl.resource_manager.get_shader("freetypetext")
         text_shader.use()
         text_shader.set_integer("text", 0)
+        projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
         text_shader.set_matrix4("projection", projection)
-        self.text_renderer = gogl.TextRenderer(text_shader)  # TODO а здесь ли надо это делать?
-        self.text_renderer.make_face("res/TerminusTTFWindows-4.46.0.ttf", 48, 64)
+        self.text_renderer = gogl.TextRenderer(text_shader)
+        self.text_renderer.make_face("res/TerminusTTFWindows-4.46.0.ttf")
 
         poly_shader = gogl.resource_manager.get_shader("polygon")
         poly_shader.use()
+        projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
         poly_shader.set_matrix4("projection", projection)
 
     def display_frame(self, frame):
@@ -178,7 +180,8 @@ class WorldViewer(basis.Entity):
                             (board_image_size, board_image_size)
                             )
 
-        self.text_renderer.draw_text("Hello", 20, 120, glm.vec3(1.0, 0.0, 1.0))
+        info_str = "Step {}".format(self.system.get_step_counter())
+        self.text_renderer.draw_text(info_str, 20, 120, 0.5, glm.vec3(1.0, 0.0, 1.0))
         # self.draw_board()
 
         imgui.render()
