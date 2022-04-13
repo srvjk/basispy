@@ -26,6 +26,7 @@ class WorldViewer(basis.Entity):
         self.win_height = WorldViewer.initial_win_height
         gogl.resource_manager.load_shader("sprite", "sprite.vs", "sprite.fs")
         gogl.resource_manager.load_shader("polygon", "polygon.vs", "polygon.fs")
+        gogl.resource_manager.load_shader("freetypetext", "freetypetext.vs", "freetypetext.fs")
 
         self.renderer = None
         self.text_renderer = None
@@ -55,8 +56,12 @@ class WorldViewer(basis.Entity):
         sprite_shader.set_matrix4("projection", projection)
         self.renderer = gogl.SpriteRenderer(sprite_shader)
 
-        self.text_renderer = gogl.TextRenderer(sprite_shader)  # TODO а здесь ли надо это делать?
-        self.text_renderer.make_face("res/TerminusTTF-4.46.0.ttf", 48, 64)
+        text_shader = gogl.resource_manager.get_shader("freetypetext")
+        text_shader.use()
+        text_shader.set_integer("text", 0)
+        text_shader.set_matrix4("projection", projection)
+        self.text_renderer = gogl.TextRenderer(text_shader)  # TODO а здесь ли надо это делать?
+        self.text_renderer.make_face("res/TerminusTTFWindows-4.46.0.ttf", 48, 64)
 
         poly_shader = gogl.resource_manager.get_shader("polygon")
         poly_shader.use()
@@ -173,7 +178,7 @@ class WorldViewer(basis.Entity):
                             (board_image_size, board_image_size)
                             )
 
-        self.text_renderer.draw_text("Hello", 20, 20, glm.vec3(1.0, 0.0, 1.0))
+        self.text_renderer.draw_text("Hello", 20, 120, glm.vec3(1.0, 0.0, 1.0))
         # self.draw_board()
 
         imgui.render()

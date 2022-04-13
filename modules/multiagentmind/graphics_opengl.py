@@ -276,70 +276,81 @@ class Polygon:
         gl.glBindVertexArray(0)
 
 
+class Character:
+    def __init__(self):
+        self.texture = None
+        self.size = glm.vec2(1.0, 1.0)
+        self.bearing = glm.vec2(0.0, 0.0)
+        self.advance = 0
+
+
 class TextRenderer:
     def __init__(self, shader):
         self.vao = None
         self.shader = shader
-        self.init_render_data()
         self.textures = dict()
         self.char_width = 1
         self.char_height = 1
-
-    def init_render_data(self):
-        vertices = [
-            # 1st triangle
-            # pos     tex
-            0.0, 1.0, 0.0, 1.0,
-            1.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 0.0,
-            # 2nd triangle
-            # pos     tex
-            0.0, 1.0, 0.0, 1.0,
-            1.0, 1.0, 1.0, 1.0,
-            1.0, 0.0, 1.0, 0.0
-        ]
-
-        self.vao = gl.glGenVertexArrays(1)
-        vbo = gl.glGenBuffers(1)
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-        gl.glBufferData(gl.GL_ARRAY_BUFFER, len(vertices) * 4, (gl.GLfloat * len(vertices))(*vertices),
-                        gl.GL_STATIC_DRAW)
-        gl.glBindVertexArray(self.vao)
-
-        gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None)
-        gl.glEnableVertexAttribArray(0)
-
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        gl.glBindVertexArray(0)
 
     def make_face(self, face_file_path, char_width, char_height):
         self.char_width = char_width
         self.char_height = char_height
         face = freetype.Face(face_file_path)
-        face.set_char_size(self.char_width * self.char_height)
+        fname = face.family_name
+        #face.set_char_size(self.char_width, self.char_height)
+        face.set_pixel_sizes(self.char_width, self.char_height)
 
-        for ch in range(0, 128):
-            face.load_char(chr(ch))
+        gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+
+        for i in range(0, 128):
+            ch = chr(i)
+            face.load_char(ch, flags=freetype.FT_LOAD_RENDER)
             bitmap = face.glyph.bitmap
 
             texture = Texture()
-            texture.internal_format = gl.GL_RGBA
-            texture.image_format = gl.GL_RGBA
-            texture.generate(self.char_width, self.char_height, bitmap.buffer)
-            self.textures[chr(ch)] = texture
+            texture.internal_format = gl.GL_RED
+            texture.image_format = gl.GL_RED
+            texture.generate(bitmap.width, bitmap.rows, bitmap.buffer)
+            self.textures[ch] = texture
 
     def draw_text(self, text, x, y, color):
         model = glm.mat4(1.0)
-        self.shader.use()
-        self.shader.set_vector3f("spriteColor", color)
 
-        x0 = x
-        y0 = y
+        self.shader.use()
+        #self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("textColor", color)
+
+        h = self.char_width
+        w = self.char_height
+        x_ch = x
+        y_ch = y - h
 
         for ch in text:
-            model = glm.translate(model, glm.vec3(x0, y0, 0.0))
-            model = glm.scale(model, glm.vec3(self.char_width, self.char_height, 1.0))
-            self.shader.set_matrix4("model", model)
+            vertices = [
+                # 1st triangle
+                # pos               tex
+                x_ch,     y_ch,     0.0, 1.0,
+                x_ch + w, y_ch + h, 1.0, 0.0,
+                x_ch,     y_ch + h, 0.0, 0.0,
+                # 2nd triangle
+                # pos               tex
+                x_ch, y_ch,         0.0, 1.0,
+                x_ch + w, y_ch,     1.0, 1.0,
+                x_ch + w, y_ch + h, 1.0, 0.0
+            ]
+
+            self.vao = gl.glGenVertexArrays(1)
+            vbo = gl.glGenBuffers(1)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(vertices) * 4, (gl.GLfloat * len(vertices))(*vertices),
+                            gl.GL_STATIC_DRAW)
+            gl.glBindVertexArray(self.vao)
+
+            gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None)
+            gl.glEnableVertexAttribArray(0)
+
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+            gl.glBindVertexArray(0)
 
             gl.glActiveTexture(gl.GL_TEXTURE0)
             texture = self.textures[ch]
@@ -349,7 +360,30 @@ class TextRenderer:
             gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
             gl.glBindVertexArray(0)
 
-            x0 += self.char_width
+            x_ch += self.char_width
+
+    # def draw_text(self, text, x, y, color):
+    #     model = glm.mat4(1.0)
+    #     self.shader.use()
+    #     self.shader.set_vector3f("spriteColor", color)
+    #
+    #     x0 = x
+    #     y0 = y
+    #
+    #     for ch in text:
+    #         model = glm.translate(model, glm.vec3(x0, y0, 0.0))
+    #         model = glm.scale(model, glm.vec3(self.char_width, self.char_height, 1.0))
+    #         self.shader.set_matrix4("model", model)
+    #
+    #         gl.glActiveTexture(gl.GL_TEXTURE0)
+    #         texture = self.textures[ch]
+    #         texture.bind()
+    #
+    #         gl.glBindVertexArray(self.vao)
+    #         gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
+    #         gl.glBindVertexArray(0)
+    #
+    #         x0 += self.char_width
 
 
 resource_manager = ResourceManager()
