@@ -42,6 +42,7 @@ class Entity:
         self.active_entities = set()     # перечень активных сущностей (т.е. таких, для которых вызывается step())
         self.entity_name_index = dict()  # индекс вложенных сущностей с доступом по имени
         self.may_be_paused = True        # можно ли ставить эту сущность на паузу
+        self._local_step_counter = 0     # локальный счетчик шагов данной сущности
 
     def clear(self):
         self.entity_name_index.clear()
@@ -220,8 +221,11 @@ class Entity:
             if condition(ent):
                 self.remove_entity(ent)
 
+    def get_local_step_counter(self):
+        return self._local_step_counter
+
     def step(self):
-        pass
+        self._local_step_counter += 1
 
 
 class OnOffTrigger(Entity):
@@ -264,7 +268,7 @@ class System(Entity):
         self.entity_uuid_index = dict()        # индекс всех сущностей в системе с доступом по UUID
         self.recent_errors = deque(maxlen=10)
         self.should_stop = False
-        self._step_counter = 0                 # счетчик шагов индивидуален для каждой сущности
+        self._step_counter = 0                 # глобальный счетчик шагов
         self._fps = 0.0                        # мгновенная частота шагов/кадров (кадров в секунду)
         self._last_step_counter = 0            # последнее сохраненное значение счетчика шагов
         self._last_time_stamp = 0              # последняя сделанная временная отметка, нс
@@ -414,7 +418,7 @@ class System(Entity):
     def model_time_s(self):
         return self._model_time_ns / 1e9
 
-    def get_step_counter(self):
+    def get_global_step_counter(self):
         return self._step_counter
 
     def get_fps(self):

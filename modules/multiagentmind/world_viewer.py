@@ -82,7 +82,7 @@ class WorldViewer(basis.Entity):
     def draw_control_window(self):
         imgui.begin("Control")
 
-        imgui.text("Step {}".format(self.system.get_step_counter()))
+        imgui.text("Step {}".format(self.system.get_global_step_counter()))
 
         if self.system.timing_mode == basis.TimingMode.UnrealTime:
             imgui.text("Non-real time mode")
@@ -110,7 +110,7 @@ class WorldViewer(basis.Entity):
         if imgui.button(">"):
             self.system.do_single_step = True
 
-        imgui.text("System steps: {}".format(self.system.get_step_counter()))
+        imgui.text("System steps: {}".format(self.system.get_global_step_counter()))
         imgui.text("System fps: {:.2f}".format(self.system.get_fps()))
 
         imgui.end()
@@ -118,7 +118,7 @@ class WorldViewer(basis.Entity):
     def draw_info_window(self):
         imgui.begin("Info")
 
-        imgui.text("Step {}".format(self.system.get_step_counter()))
+        imgui.text("Step {}".format(self.system.get_global_step_counter()))
 
         if not self.agent:
             if self.agent_id:
@@ -127,7 +127,6 @@ class WorldViewer(basis.Entity):
                 self.agent = basis.first_of(self.system.get_entities_by_type_recursively(cells.Agent))
 
         if self.agent:
-            imgui.text("Entities total: {}".format(len(self.system.entity_uuid_index)))
             imgui.text("Agent found")
             imgui.text("Agent pos.: ({}, {})".format(int(self.agent.position.x), int(self.agent.position.y)))
             imgui.text("Agent ort.: ({}, {})".format(int(self.agent.orientation.x), int(self.agent.orientation.y)))
@@ -143,6 +142,32 @@ class WorldViewer(basis.Entity):
                 self.display_frame(last_frame)
         else:
             imgui.text("No agents found!")
+
+        imgui.end()
+
+    def draw_entities_window(self):
+        imgui.begin("Entities")
+
+        imgui.text("Entities total: {}".format(len(self.system.entity_uuid_index)))
+
+        imgui.columns(3)
+        imgui.separator()
+        imgui.text("ID")
+        imgui.next_column()
+        imgui.text("Name")
+        imgui.next_column()
+        imgui.text("Step")
+        imgui.next_column()
+        imgui.separator()
+
+        for k, v in self.system.entity_uuid_index.items():
+            imgui.selectable(str(k)[:5] + '...', False, imgui.SELECTABLE_SPAN_ALL_COLUMNS)
+            imgui.next_column()
+            name = v.name if v.name else "-"
+            imgui.text(name)
+            imgui.next_column()
+            imgui.text(str(v.get_local_step_counter()))
+            imgui.next_column()
 
         imgui.end()
 
@@ -169,6 +194,7 @@ class WorldViewer(basis.Entity):
         imgui.new_frame()
 
         self.draw_info_window()
+        self.draw_entities_window()
         self.draw_control_window()
 
         if self.board:
@@ -180,7 +206,7 @@ class WorldViewer(basis.Entity):
                             (board_image_size, board_image_size)
                             )
 
-        info_str = "Step {}".format(self.system.get_step_counter())
+        info_str = "Step {}".format(self.system.get_global_step_counter())
         self.text_renderer.draw_text(info_str, 20, 120, 0.5, glm.vec3(1.0, 0.0, 1.0))
         # self.draw_board()
 

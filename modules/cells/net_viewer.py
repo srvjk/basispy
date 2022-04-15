@@ -109,7 +109,7 @@ class NetControlWindow(basis.Entity):
         if imgui.button(">"):
             self.system.do_single_step = True
 
-        imgui.text("System steps: {}".format(self.system.get_step_counter()))
+        imgui.text("System steps: {}".format(self.system.get_global_step_counter()))
         imgui.text("System fps: {:.2f}".format(self.system.get_fps()))
 
         net_viewer = self.get_entity_by_id(self.net_viewer_id)
