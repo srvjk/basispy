@@ -114,6 +114,7 @@ class Agent(basis.Entity):
         self.long_memory = list()  # долговременная память - набор последовательностей кадров
         self.long_memory_capacity = 10  # ёмкость долговременной памяти (кол-во хранимых последовательностей кадров)
         self.current_frame = self.add_new(Frame)  # текущий (рабочий) кадр
+        self.message = None  # диагностическое сообщение (если есть)
 
     def set_board(self, board):
         self.board = board
@@ -157,8 +158,8 @@ class Agent(basis.Entity):
             self.long_memory.pop()
 
     def do_step(self):
-        x_ahead = int(self.position[0] + self.orientation[0])
-        y_ahead = int(self.position[1] + self.orientation[1])
+        x_ahead = int(self.position.x + self.orientation.x)
+        y_ahead = int(self.position.y + self.orientation.y)
 
         # проверка на наличие препятствия прямо по курсу
         if self.board.is_obstacle(x_ahead, y_ahead):
@@ -168,7 +169,8 @@ class Agent(basis.Entity):
             self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
 
         # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
-        if self.board.is_obstacle(int(self.position[0]), int(self.position[1])):
+        if self.board.is_obstacle(int(self.position.x), int(self.position.y)):
+            self.message = "Collision: obstacle at ({}, {})".format(int(self.position.x), int(self.position.y))
             if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
                 self.current_frame.add_new(ObstacleCollision)
         else:
@@ -189,6 +191,10 @@ class Agent(basis.Entity):
             self.orientation = glm.rotate(self.orientation, -glm.pi() / 2.0)
 
     def step(self):
+        super().step()
+
+        self.message = None
+
         if not self.board:
             return
 

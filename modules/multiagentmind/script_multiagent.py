@@ -14,7 +14,7 @@ def main():
     board = system.add_new(cells.Board, "Board")
     board.create_obstacles(density=0.1)
 
-    agent = board.add_new(cells.Agent)
+    agent = board.add_new(cells.Agent, "Agent")
     agent.set_board(board)
     system.activate(agent)
 

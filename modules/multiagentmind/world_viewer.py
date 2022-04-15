@@ -140,6 +140,9 @@ class WorldViewer(basis.Entity):
             last_frame = self.agent.short_memory.most_recent_frame()
             if last_frame:
                 self.display_frame(last_frame)
+
+            if self.agent.message:
+                imgui.text(self.agent.message)
         else:
             imgui.text("No agents found!")
 
@@ -149,6 +152,9 @@ class WorldViewer(basis.Entity):
         imgui.begin("Entities")
 
         imgui.text("Entities total: {}".format(len(self.system.entity_uuid_index)))
+        imgui.new_line()
+
+        imgui.text("Named entities:")
 
         imgui.columns(3)
         imgui.separator()
@@ -161,6 +167,8 @@ class WorldViewer(basis.Entity):
         imgui.separator()
 
         for k, v in self.system.entity_uuid_index.items():
+            if not v.name:
+                continue
             imgui.selectable(str(k)[:5] + '...', False, imgui.SELECTABLE_SPAN_ALL_COLUMNS)
             imgui.next_column()
             name = v.name if v.name else "-"

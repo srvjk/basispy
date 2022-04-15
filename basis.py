@@ -275,7 +275,7 @@ class System(Entity):
         self._fps_probe_interval = int(1e9)    # интервал между замерами FPS, нс
         self._last_fps_time_stamp = 0          # последняя отметка времени для измерения FPS, нс
         self._model_time_ns = 0                # модельное время (от первого System.step()), нс
-        self.pause = False                     # флаг режима "Пауза/пошаговый"
+        self.pause = True                      # флаг режима "Пауза/пошаговый"
         self.step_time_delta_ns = 1000000      # длительность 1 шага модельного времени, нс
         #self.timing_mode = TimingMode.UnrealTime # режим исчисления модельного времени
         self.timing_mode = TimingMode.RealTime # режим исчисления модельного времени
