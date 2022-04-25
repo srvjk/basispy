@@ -163,6 +163,8 @@ class Agent(basis.Entity):
 
         # проверка на наличие препятствия прямо по курсу
         if self.board.is_obstacle(x_ahead, y_ahead):
+            print("obstacle ahead at step {}: ({}, {})".format(self._local_step_counter, x_ahead, y_ahead))
+
             if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
                 self.current_frame.add_new(ObstacleAhead)
         else:
@@ -170,24 +172,33 @@ class Agent(basis.Entity):
 
         # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
         if self.board.is_obstacle(int(self.position.x), int(self.position.y)):
+            print("collision at step {}: ({}, {})".format(self._local_step_counter,
+                                                          int(self.position.x), int(self.position.y)))
+
             self.message = "Collision: obstacle at ({}, {})".format(int(self.position.x), int(self.position.y))
             if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
                 self.current_frame.add_new(ObstacleCollision)
         else:
             self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
 
+        print("Action for step {}:".format(self._local_step_counter))
+
         choice = random.choice(list(AgentAction))
         if choice == AgentAction.NoAction:
+            print("    no action")
             pass
         if choice == AgentAction.MoveForward:
+            print("    move forward")
             self.position += self.orientation
             self.position.x = max(0, self.position.x)
             self.position.x = min(self.position.x, self.board.size - 1)
             self.position.y = max(0, self.position.y)
             self.position.y = min(self.position.y, self.board.size - 1)
         if choice == AgentAction.TurnLeft:
+            print("    turn left")
             self.orientation = glm.rotate(self.orientation, glm.pi() / 2.0)
         if choice == AgentAction.TurnRight:
+            print("    turn right")
             self.orientation = glm.rotate(self.orientation, -glm.pi() / 2.0)
 
     def step(self):
