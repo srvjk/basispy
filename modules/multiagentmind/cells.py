@@ -8,6 +8,7 @@ import glfw
 import OpenGL.GL as gl
 import glm
 import graphics_opengl as gogl
+import logging
 
 
 class AgentAction(Enum):
@@ -20,7 +21,7 @@ class AgentAction(Enum):
 class Obstacle(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
-        self.position = glm.vec2(0, 0)
+        self.position = glm.ivec2(0, 0)
 
 
 class Boredom(basis.Entity):
@@ -107,14 +108,19 @@ class Agent(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.board = None
-        self.position = glm.vec2(0, 0)
-        self.orientation = glm.vec2(1, 0)
+        self.position = glm.ivec2(0, 0)
+        self.orientation = glm.ivec2(1, 0)
         self.short_memory = self.add_new(FrameSequence) # кратковременная память - последовательность кадров
         self.short_memory.max_capacity = 100
         self.long_memory = list()  # долговременная память - набор последовательностей кадров
         self.long_memory_capacity = 10  # ёмкость долговременной памяти (кол-во хранимых последовательностей кадров)
         self.current_frame = self.add_new(Frame)  # текущий (рабочий) кадр
         self.message = None  # диагностическое сообщение (если есть)
+        self.logger = logging.getLogger("multiagentmind")
+        self.logger.setLevel(logging.DEBUG)
+        stream_handler = logging.StreamHandler(sys.stdout)
+        #stream_handler.setLevel(logging.DEBUG)
+        self.logger.addHandler(stream_handler)
 
     def set_board(self, board):
         self.board = board
@@ -158,12 +164,12 @@ class Agent(basis.Entity):
             self.long_memory.pop()
 
     def do_step(self):
-        x_ahead = int(self.position.x + self.orientation.x)
-        y_ahead = int(self.position.y + self.orientation.y)
+        x_ahead = self.position.x + self.orientation.x
+        y_ahead = self.position.y + self.orientation.y
 
         # проверка на наличие препятствия прямо по курсу
         if self.board.is_obstacle(x_ahead, y_ahead):
-            print("obstacle ahead at step {}: ({}, {})".format(self._local_step_counter, x_ahead, y_ahead))
+            self.logger.debug("obstacle ahead at step {}: ({}, {})".format(self._local_step_counter, x_ahead, y_ahead))
 
             if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
                 self.current_frame.add_new(ObstacleAhead)
@@ -171,35 +177,37 @@ class Agent(basis.Entity):
             self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
 
         # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
-        if self.board.is_obstacle(int(self.position.x), int(self.position.y)):
-            print("collision at step {}: ({}, {})".format(self._local_step_counter,
-                                                          int(self.position.x), int(self.position.y)))
+        if self.board.is_obstacle(self.position.x, self.position.y):
+            self.logger.debug("collision at step {}: ({}, {})".format(self._local_step_counter, self.position.x,
+                                                                      self.position.y))
 
-            self.message = "Collision: obstacle at ({}, {})".format(int(self.position.x), int(self.position.y))
+            self.message = "Collision: obstacle at ({}, {})".format(self.position.x, self.position.y)
             if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
                 self.current_frame.add_new(ObstacleCollision)
         else:
             self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
 
-        print("Action for step {}:".format(self._local_step_counter))
+        self.logger.debug("Action for step {}:".format(self._local_step_counter))
 
         choice = random.choice(list(AgentAction))
         if choice == AgentAction.NoAction:
-            print("    no action")
+            self.logger.debug("    no action")
             pass
         if choice == AgentAction.MoveForward:
-            print("    move forward")
+            self.logger.debug("    move forward")
             self.position += self.orientation
             self.position.x = max(0, self.position.x)
             self.position.x = min(self.position.x, self.board.size - 1)
             self.position.y = max(0, self.position.y)
             self.position.y = min(self.position.y, self.board.size - 1)
         if choice == AgentAction.TurnLeft:
-            print("    turn left")
-            self.orientation = glm.rotate(self.orientation, glm.pi() / 2.0)
+            self.logger.debug("    turn left")
+            vr = glm.rotate(glm.vec2(self.orientation), glm.pi() / 2.0)
+            self.orientation = glm.ivec2(round(vr.x), round(vr.y))
         if choice == AgentAction.TurnRight:
-            print("    turn right")
-            self.orientation = glm.rotate(self.orientation, -glm.pi() / 2.0)
+            self.logger.debug("    turn right")
+            vr = glm.rotate(glm.vec2(self.orientation), -glm.pi() / 2.0)
+            self.orientation = glm.ivec2(round(vr.x), round(vr.y))
 
     def step(self):
         super().step()
@@ -227,11 +235,14 @@ class Agent(basis.Entity):
         # запомнить недавнюю последовательность кадров
         #self.short_to_long_memory()
 
-def angle(vec1, vec2):
+def angle(vector1, vector2):
     """
     Вычислить ориентированный угол (в радианах) между двумя векторами.
     Положительное направление вращения - против часовой стрелки от vec1 к vec2.
     """
+    vec1 = glm.vec2(vector1)
+    vec2 = glm.vec2(vector2)
+
     sign = 1.0
     len_1_len_2 = glm.length(vec1) * glm.length(vec2)
     dot = glm.dot(vec1, vec2)

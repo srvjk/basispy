@@ -7,6 +7,22 @@ from imgui.integrations.glfw import GlfwRenderer
 import glm
 import graphics_opengl as gogl
 import cells
+import logging
+
+
+class WorldLogHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.message_buffer = []
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            self.message_buffer.append(msg)
+        except RecursionError:  # See issue 36272
+            raise
+        except Exception:
+            self.handleError(record)
 
 
 class WorldViewer(basis.Entity):
@@ -44,6 +60,9 @@ class WorldViewer(basis.Entity):
         self.agent = None
         self.agent_id = None
 
+        self.log_handler = WorldLogHandler()
+        self.logger = None
+
     def on_window_resize(self):
         glfw.make_context_current(self.window)
 
@@ -52,7 +71,8 @@ class WorldViewer(basis.Entity):
         sprite_shader = gogl.resource_manager.get_shader("sprite")
         sprite_shader.use()
         sprite_shader.set_integer("image", 0)
-        projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+        #projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+        projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
         sprite_shader.set_matrix4("projection", projection)
         self.renderer = gogl.SpriteRenderer(sprite_shader)
 
@@ -66,7 +86,8 @@ class WorldViewer(basis.Entity):
 
         poly_shader = gogl.resource_manager.get_shader("polygon")
         poly_shader.use()
-        projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+        #projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+        projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
         poly_shader.set_matrix4("projection", projection)
 
     def display_frame(self, frame):
@@ -128,8 +149,9 @@ class WorldViewer(basis.Entity):
 
         if self.agent:
             imgui.text("Agent found")
-            imgui.text("Agent pos.: ({}, {})".format(int(self.agent.position.x), int(self.agent.position.y)))
-            imgui.text("Agent ort.: ({}, {})".format(int(self.agent.orientation.x), int(self.agent.orientation.y)))
+            xr = round(self.agent.position.x)
+            imgui.text("Agent pos.: ({}, {})".format(self.agent.position.x, self.agent.position.y))
+            imgui.text("Agent ort.: ({}, {})".format(self.agent.orientation.x, self.agent.orientation.y))
             imgui.text("Short memory: {} items".format(self.agent.short_memory.size()))
 
             imgui.text_colored("Current frame:", 1.0, 1.0, 0.0)
@@ -179,6 +201,28 @@ class WorldViewer(basis.Entity):
 
         imgui.end()
 
+    def draw_log_window(self):
+        if not self.logger:
+            self.logger = logging.getLogger("multiagentmind")
+            self.logger.addHandler(self.log_handler)
+
+        imgui.begin("Log")
+
+        for item in self.log_handler.message_buffer:
+            imgui.text(item)
+
+        n_max = 10
+        list_len = len(self.log_handler.message_buffer)
+        if  list_len > n_max:
+            overfill = list_len - n_max
+            del self.log_handler.message_buffer[:overfill]
+
+        # while len(self.log_handler.message_buffer) > 0:
+        #     item = self.log_handler.message_buffer.pop(0)
+        #     imgui.text(item)
+
+        imgui.end()
+
     def window_size_callback(self, window, width, height):
         self.win_width = width
         self.win_height = height
@@ -204,6 +248,7 @@ class WorldViewer(basis.Entity):
         self.draw_info_window()
         self.draw_entities_window()
         self.draw_control_window()
+        self.draw_log_window()
 
         if self.board:
             board_image_size = min(self.win_width, self.win_height)
