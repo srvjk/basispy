@@ -206,12 +206,17 @@ class WorldViewer(basis.Entity):
             self.logger = logging.getLogger("multiagentmind")
             self.logger.addHandler(self.log_handler)
 
-        imgui.begin("Log")
+        imgui.begin("Log", flags=imgui.WINDOW_NO_SCROLLBAR)
 
+        imgui.begin_child("log_text", 0.0, -50.0, border=False)
         for item in self.log_handler.message_buffer:
             imgui.text(item)
+            imgui.set_scroll_here(1.0)
+        imgui.end_child()
 
-        n_max = 10
+        imgui.dummy(0, 50)
+
+        n_max = 100
         list_len = len(self.log_handler.message_buffer)
         if  list_len > n_max:
             overfill = list_len - n_max
