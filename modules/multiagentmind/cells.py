@@ -48,6 +48,81 @@ class ObstacleCollision(basis.Entity):
         super().__init__(system)
 
 
+class Action:
+    """
+    Абстрактное действие.
+    """
+    def __init__(self):
+        self.is_done = False  # было ли действие уже выполнено
+        self.object = None    # объект действия
+
+
+class MoveForwardAction(basis.Entity):
+    """
+    Действие 'двигаться вперёд'.
+    """
+    def __init__(self, system):
+        super().__init__(system)
+        self.action = Action()
+
+    def step(self):
+        super().step()
+
+        obj = self.action.object
+        if not obj:
+            return
+
+        obj.position += obj.orientation
+        obj.position.x = max(0, obj.position.x)
+        obj.position.x = min(obj.position.x, obj.board.size - 1)
+        obj.position.y = max(0, obj.position.y)
+        obj.position.y = min(obj.position.y, obj.board.size - 1)
+
+        self.action.is_done = True
+
+
+class TurnLeftAction(basis.Entity):
+    """
+    Действие 'повернуть влево на 90 градусов'.
+    """
+    def __init__(self, system):
+        super().__init__(system)
+        self.action = Action()
+
+    def step(self):
+        super().step()
+
+        obj = self.action.object
+        if not obj:
+            return
+
+        vr = glm.rotate(glm.vec2(obj.orientation), glm.pi() / 2.0)
+        obj.orientation = glm.ivec2(round(vr.x), round(vr.y))
+
+        self.action.is_done = True
+
+
+class TurnRightAction(basis.Entity):
+    """
+    Действие 'повернуть вправо на 90 градусов'.
+    """
+    def __init__(self, system):
+        super().__init__(system)
+        self.action = Action()
+
+    def step(self):
+        super().step()
+
+        obj = self.action.object
+        if not obj:
+            return
+
+        vr = glm.rotate(glm.vec2(obj.orientation), -glm.pi() / 2.0)
+        obj.orientation = glm.ivec2(round(vr.x), round(vr.y))
+
+        self.action.is_done = True
+
+
 class Frame(basis.Entity):
     """
     Кадр - основой структурный элемент памяти агента.
@@ -164,6 +239,16 @@ class Agent(basis.Entity):
             self.long_memory.pop()
 
     def do_step(self):
+        # выполнить действия, запланированные на предыдущем шаге (шагах), ненужные затем удалить:
+        for ent in self.current_frame.entities.copy():
+            action = ent.get_facet(Action)  #TODO продумать механизм граней (как замену наследованию)
+            if not action:
+                continue
+            ent.step()
+            if action.is_done:
+                ent.clear()
+                self.current_frame.remove_entity(ent)
+
         x_ahead = self.position.x + self.orientation.x
         y_ahead = self.position.y + self.orientation.y
 
@@ -195,19 +280,28 @@ class Agent(basis.Entity):
             pass
         if choice == AgentAction.MoveForward:
             self.logger.debug("    move forward")
-            self.position += self.orientation
-            self.position.x = max(0, self.position.x)
-            self.position.x = min(self.position.x, self.board.size - 1)
-            self.position.y = max(0, self.position.y)
-            self.position.y = min(self.position.y, self.board.size - 1)
+            fwd_act = self.current_frame.add_new(MoveForwardAction)
+            fwd_act.action.object = self
+
+            # self.position += self.orientation
+            # self.position.x = max(0, self.position.x)
+            # self.position.x = min(self.position.x, self.board.size - 1)
+            # self.position.y = max(0, self.position.y)
+            # self.position.y = min(self.position.y, self.board.size - 1)
         if choice == AgentAction.TurnLeft:
             self.logger.debug("    turn left")
-            vr = glm.rotate(glm.vec2(self.orientation), glm.pi() / 2.0)
-            self.orientation = glm.ivec2(round(vr.x), round(vr.y))
+            tl_act = self.current_frame.add_new(TurnLeftAction)
+            tl_act.action.object = self
+
+            # vr = glm.rotate(glm.vec2(self.orientation), glm.pi() / 2.0)
+            # self.orientation = glm.ivec2(round(vr.x), round(vr.y))
         if choice == AgentAction.TurnRight:
             self.logger.debug("    turn right")
-            vr = glm.rotate(glm.vec2(self.orientation), -glm.pi() / 2.0)
-            self.orientation = glm.ivec2(round(vr.x), round(vr.y))
+            tr_act = self.current_frame.add_new(TurnRightAction)
+            tr_act.action.object = self
+
+            # vr = glm.rotate(glm.vec2(self.orientation), -glm.pi() / 2.0)
+            # self.orientation = glm.ivec2(round(vr.x), round(vr.y))
 
     def step(self):
         super().step()

@@ -224,6 +224,13 @@ class Entity:
     def get_local_step_counter(self):
         return self._local_step_counter
 
+    def get_facet(self, type_name):  #TODO временно, переделать!
+        for k, v in inspect.getmembers(self):
+            if isinstance(v, type_name):
+                return v
+
+        return None
+
     def step(self):
         self._local_step_counter += 1
 
