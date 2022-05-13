@@ -61,7 +61,10 @@ class WorldViewer(basis.Entity):
         self.agent_id = None
 
         self.log_handler = WorldLogHandler()
-        self.logger = None
+
+        # ссылки на логгеры (нужны только для того, чтобы не запрашивать логгеры каждый раз при отрисовке окна):
+        self.multiagentmind_logger = None  # "локальный" логгер для этого модуля
+        self.system_logger = None          # системный логгер
 
     def on_window_resize(self):
         glfw.make_context_current(self.window)
@@ -202,9 +205,14 @@ class WorldViewer(basis.Entity):
         imgui.end()
 
     def draw_log_window(self):
-        if not self.logger:
-            self.logger = logging.getLogger("multiagentmind")
-            self.logger.addHandler(self.log_handler)
+        if not self.multiagentmind_logger:
+            self.multiagentmind_logger = logging.getLogger("multiagentmind")
+            if self.multiagentmind_logger:
+                self.multiagentmind_logger.addHandler(self.log_handler)
+        if not self.system_logger:
+            self.system_logger = logging.getLogger("system")
+            if self.system_logger:
+                self.system_logger.addHandler(self.log_handler)
 
         imgui.begin("Log", flags=imgui.WINDOW_NO_SCROLLBAR)
 
@@ -221,10 +229,6 @@ class WorldViewer(basis.Entity):
         if  list_len > n_max:
             overfill = list_len - n_max
             del self.log_handler.message_buffer[:overfill]
-
-        # while len(self.log_handler.message_buffer) > 0:
-        #     item = self.log_handler.message_buffer.pop(0)
-        #     imgui.text(item)
 
         imgui.end()
 

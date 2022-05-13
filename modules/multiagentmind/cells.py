@@ -72,11 +72,13 @@ class MoveForwardAction(basis.Entity):
         if not obj:
             return
 
-        obj.position += obj.orientation
-        obj.position.x = max(0, obj.position.x)
-        obj.position.x = min(obj.position.x, obj.board.size - 1)
-        obj.position.y = max(0, obj.position.y)
-        obj.position.y = min(obj.position.y, obj.board.size - 1)
+        #obj.position += obj.orientation
+
+        obj.position = glm.ivec2(
+            obj.board.normalized_coordinates(
+                *((obj.position + obj.orientation).to_tuple()),
+            )
+        )
 
         self.action.is_done = True
 
@@ -244,14 +246,11 @@ class Agent(basis.Entity):
                 continue
             ent.step()
             if action.is_done:
-                before = self.system.get_entities_total()
-                type_name = type(ent)
                 ent.abolish()
-                after = self.system.get_entities_total()
-                self.logger.debug(">>> entity removed: {} {} -> {}".format(type_name, before, after))
 
-        x_ahead = self.position.x + self.orientation.x
-        y_ahead = self.position.y + self.orientation.y
+        x_ahead, y_ahead = self.board.normalized_coordinates(
+            *((self.position + self.orientation).to_tuple())
+            )
 
         # проверка на наличие препятствия прямо по курсу
         if self.board.is_obstacle(x_ahead, y_ahead):
@@ -283,26 +282,14 @@ class Agent(basis.Entity):
             self.logger.debug("    move forward")
             fwd_act = self.current_frame.add_new(MoveForwardAction)
             fwd_act.action.object = self
-
-            # self.position += self.orientation
-            # self.position.x = max(0, self.position.x)
-            # self.position.x = min(self.position.x, self.board.size - 1)
-            # self.position.y = max(0, self.position.y)
-            # self.position.y = min(self.position.y, self.board.size - 1)
         if choice == AgentAction.TurnLeft:
             self.logger.debug("    turn left")
             tl_act = self.current_frame.add_new(TurnLeftAction)
             tl_act.action.object = self
-
-            # vr = glm.rotate(glm.vec2(self.orientation), glm.pi() / 2.0)
-            # self.orientation = glm.ivec2(round(vr.x), round(vr.y))
         if choice == AgentAction.TurnRight:
             self.logger.debug("    turn right")
             tr_act = self.current_frame.add_new(TurnRightAction)
             tr_act.action.object = self
-
-            # vr = glm.rotate(glm.vec2(self.orientation), -glm.pi() / 2.0)
-            # self.orientation = glm.ivec2(round(vr.x), round(vr.y))
 
     def step(self):
         super().step()
@@ -368,7 +355,7 @@ class Board(basis.Entity):
         super().__init__(system)
         self.agents = list()
         self.obstacles = list()
-        self.size = 100
+        self.size = 50
         self.cell_size = 3
         #self.visual_field = pygame.Surface((self.size_in_pixels(), self.size_in_pixels()))
         #self.compressed_visual_field = pygame.Surface((self.size, self.size))  # поле, сжатое до 1 пиксела на клетку
@@ -388,6 +375,11 @@ class Board(basis.Entity):
 
     def size_in_pixels(self):
         return self.size * self.cell_size
+
+    def normalized_coordinates(self, x, y):
+        x_norm = (x + self.size) % self.size
+        y_norm = (y + self.size) % self.size
+        return x_norm, y_norm
 
     def add_agent(self, agent):
         self.agents.append(agent)

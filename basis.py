@@ -1,3 +1,4 @@
+import sys
 import importlib
 import importlib.util
 from collections import deque
@@ -5,6 +6,7 @@ import uuid
 import time
 from enum import Enum
 import inspect
+import logging
 
 
 def first_of(lst):
@@ -47,10 +49,9 @@ class Entity:
     def clear(self):
         self.entity_name_index.clear()
         self.active_entities.clear()
-        while self.entities:
-            ent = self.entities.pop()
-            ent.clear()
-            self.system.unregister_entity(ent)
+
+        for ent in self.entities.copy():
+            ent.abolish()
 
     def clone(self):
         """
@@ -92,11 +93,19 @@ class Entity:
         из других объектов.
         :return:
         """
+
         self.clear()
+
+        before = self.system.get_entities_total()
+        type_name = type(self)
+
         if self.parent:
             self.parent.remove_entity(self)
         if self.system:
             self.system.unregister_entity(self)
+
+        after = self.system.get_entities_total()
+        self.system.logger.debug(">>> entity removed: {} {} -> {}".format(type_name, before, after))
 
     def add_entity(self, entity) -> (bool, str):
         if not isinstance(entity, Entity):
@@ -296,6 +305,10 @@ class System(Entity):
         self.timing_mode = TimingMode.RealTime # режим исчисления модельного времени
         self.model_time_speed = 1.0
         self.do_single_step = False            # сделать один шаг в режиме "Пауза" (для пошагового режима)
+        self.logger = logging.getLogger("system")
+        self.logger.setLevel(logging.DEBUG)
+        stream_handler = logging.StreamHandler(sys.stdout)
+        self.logger.addHandler(stream_handler)
 
     def clear(self):
         super().clear()
@@ -353,7 +366,7 @@ class System(Entity):
 
         self.entity_uuid_index[entity.uuid] = entity
         after = self.get_entities_total()
-        print("*** entity registered: {} {} -> {}".format(type(entity), before, after))
+        self.logger.debug("*** entity registered: {} {} -> {}".format(type(entity), before, after))
 
     def unregister_entity(self, entity):
         if entity.uuid in self.entity_uuid_index:
