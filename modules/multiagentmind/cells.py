@@ -163,8 +163,7 @@ class FrameSequence(basis.Entity):
         if len(self.frames) > self.max_capacity:
             oldest_frame = self.frames.pop()
             if oldest_frame:
-                oldest_frame.clear()
-                oldest_frame.remove()
+                oldest_frame.abolish()
 
         return frame
 
@@ -194,7 +193,6 @@ class Agent(basis.Entity):
         self.logger = logging.getLogger("multiagentmind")
         self.logger.setLevel(logging.DEBUG)
         stream_handler = logging.StreamHandler(sys.stdout)
-        #stream_handler.setLevel(logging.DEBUG)
         self.logger.addHandler(stream_handler)
 
     def set_board(self, board):
@@ -246,8 +244,11 @@ class Agent(basis.Entity):
                 continue
             ent.step()
             if action.is_done:
-                ent.clear()
-                self.current_frame.remove_entity(ent)
+                before = self.system.get_entities_total()
+                type_name = type(ent)
+                ent.abolish()
+                after = self.system.get_entities_total()
+                self.logger.debug(">>> entity removed: {} {} -> {}".format(type_name, before, after))
 
         x_ahead = self.position.x + self.orientation.x
         y_ahead = self.position.y + self.orientation.y

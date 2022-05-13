@@ -84,7 +84,15 @@ class Entity:
 
         return new_entity
 
-    def remove(self):
+    def abolish(self):
+        """
+        'Упразднить' данную сущность, т.е. очистить, удалить из родительской сущности и вычеркнуть из системного
+        реестра.
+        'Упразднённая' сущность может продолжать физически существовать некоторое время, пока на неё имеются ссылки
+        из других объектов.
+        :return:
+        """
+        self.clear()
         if self.parent:
             self.parent.remove_entity(self)
         if self.system:
@@ -334,6 +342,7 @@ class System(Entity):
         return item
 
     def register_entity(self, entity):
+        before = self.get_entities_total()
         old = self.entity_uuid_index.get(entity.uuid, None)
         if old:
             if old == entity:
@@ -343,6 +352,8 @@ class System(Entity):
                 raise EntityCollisionException(msg)
 
         self.entity_uuid_index[entity.uuid] = entity
+        after = self.get_entities_total()
+        print("*** entity registered: {} {} -> {}".format(type(entity), before, after))
 
     def unregister_entity(self, entity):
         if entity.uuid in self.entity_uuid_index:
@@ -430,6 +441,9 @@ class System(Entity):
 
     def get_fps(self):
         return self._fps
+
+    def get_entities_total(self):
+        return len(self.entity_uuid_index)
 
 
 def main():
