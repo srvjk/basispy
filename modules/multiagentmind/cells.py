@@ -260,7 +260,7 @@ class Agent(basis.Entity):
             if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
                 self.current_frame.add_new(ObstacleAhead)
         else:
-            self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
+            self.current_frame.abolish_children(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
 
         # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
         if self.board.is_obstacle(self.position.x, self.position.y):
@@ -271,7 +271,7 @@ class Agent(basis.Entity):
             if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
                 self.current_frame.add_new(ObstacleCollision)
         else:
-            self.current_frame.remove_all(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
+            self.current_frame.abolish_children(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
 
         self.logger.debug("Action for step {}:".format(self._local_step_counter))
 
@@ -409,7 +409,11 @@ class Board(basis.Entity):
         return self.compressed_visual_field.get_at((x, y))
 
     def is_obstacle(self, x, y):
-        cell = self.cells[y][x]
+        try:
+            cell = self.cells[y][x]
+        except IndexError:
+            return False
+
         for obj in cell.objects:
             if isinstance(obj, Obstacle):
                 return True

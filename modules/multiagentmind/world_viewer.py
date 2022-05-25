@@ -176,6 +176,13 @@ class WorldViewer(basis.Entity):
         imgui.text("Entities total: {}".format(len(self.system.entity_uuid_index)))
         imgui.new_line()
 
+        imgui.text("Entities by type:")
+        imgui.new_line()
+        for k, v in self.system.statistics.counter_by_type.items():
+            imgui.text("{} : {}".format(k, v))
+
+        imgui.new_line()
+
         imgui.text("Named entities:")
 
         imgui.columns(3)

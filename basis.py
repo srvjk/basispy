@@ -98,6 +98,16 @@ class Entity:
         if self.system:
             self.system.unregister_entity(self)
 
+    def abolish_children(self, condition):
+        """
+        'Упразднить' все вложенные сущности, удовлетворяющие заданному условию.
+        :param condition:
+        :return:
+        """
+        for ent in self.entities.copy():
+            if condition(ent):
+                ent.abolish()
+
     def add_entity(self, entity) -> (bool, str):
         if not isinstance(entity, Entity):
             self.system.report_error("not an Entity")
@@ -224,11 +234,6 @@ class Entity:
                 return True
         return False
 
-    def remove_all(self, condition):
-        for ent in self.entities.copy():
-            if condition(ent):
-                self.remove_entity(ent)
-
     def get_local_step_counter(self):
         return self._local_step_counter
 
@@ -276,11 +281,18 @@ class UnsupportedTimingModeException(BasisException):
         super().__init__()
         self.message = message
 
+
+class SystemStatistics:
+    def __init__(self):
+        self.counter_by_type = dict()  # для подсчета количества сущностей каждого типа
+
+
 class System(Entity):
     def __init__(self):
         super().__init__(system=None)
         self.system = self
         self.entity_uuid_index = dict()        # индекс всех сущностей в системе с доступом по UUID
+        self.entity_type_count = dict()
         self.recent_errors = deque(maxlen=10)
         self.should_stop = False
         self._step_counter = 0                 # глобальный счетчик шагов
@@ -296,6 +308,7 @@ class System(Entity):
         self.timing_mode = TimingMode.RealTime # режим исчисления модельного времени
         self.model_time_speed = 1.0
         self.do_single_step = False            # сделать один шаг в режиме "Пауза" (для пошагового режима)
+        self.statistics = SystemStatistics()   # системная статистика
 
     def clear(self):
         super().clear()
@@ -353,11 +366,22 @@ class System(Entity):
 
         self.entity_uuid_index[entity.uuid] = entity
         after = self.get_entities_total()
+
+        type_name = type(entity)
+        cnt = self.statistics.counter_by_type.get(type_name, 0)
+        cnt += 1
+        self.statistics.counter_by_type[type_name] = cnt
+
         print("*** entity registered: {} {} -> {}".format(type(entity), before, after))
 
     def unregister_entity(self, entity):
         if entity.uuid in self.entity_uuid_index:
            del self.entity_uuid_index[entity.uuid]
+
+        type_name = type(entity)
+        cnt = self.statistics.counter_by_type.get(type_name, 0)
+        cnt -= 1
+        self.statistics.counter_by_type[type_name] = cnt
 
     def step(self):
         super().step()
