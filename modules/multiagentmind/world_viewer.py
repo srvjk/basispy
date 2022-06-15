@@ -8,6 +8,7 @@ import glm
 import graphics_opengl as gogl
 import cells
 import logging
+import configparser
 
 
 class WorldLogHandler(logging.Handler):
@@ -26,20 +27,24 @@ class WorldLogHandler(logging.Handler):
 
 
 class WorldViewer(basis.Entity):
-    initial_win_size = (initial_win_width, initial_win_height) = (1024, 768)
-
     def __init__(self, system):
         super().__init__(system)
+        self.config = None
+        self.config_file_name = 'multiagentmind.ini'
+        self.win_x = 10
+        self.win_y = 10
+        self.win_width = 1024
+        self.win_height = 768
+        self.read_config()
         self.may_be_paused = False
-        self.window = init_glfw()
+        self.window = self.init_glfw()
         imgui.create_context()
         self.render_engine = GlfwRenderer(self.window)
         glfw.set_window_size_callback(self.window, self.window_size_callback)
+        glfw.set_window_pos_callback(self.window, self.window_pos_callback)
 
         glfw.make_context_current(self.window)
 
-        self.win_width = WorldViewer.initial_win_width
-        self.win_height = WorldViewer.initial_win_height
         gogl.resource_manager.load_shader("sprite", "sprite.vs", "sprite.fs")
         gogl.resource_manager.load_shader("polygon", "polygon.vs", "polygon.fs")
         gogl.resource_manager.load_shader("freetypetext", "freetypetext.vs", "freetypetext.fs")
@@ -47,6 +52,8 @@ class WorldViewer(basis.Entity):
         self.renderer = None
         self.text_renderer = None
         self.on_window_resize()
+
+        glfw.set_window_pos(self.window, self.win_x, self.win_y)
 
         # alpha blending (for transparency, semi-transparency, etc.)
         gl.glEnable(gl.GL_BLEND)
@@ -65,6 +72,38 @@ class WorldViewer(basis.Entity):
         # ссылки на логгеры (нужны только для того, чтобы не запрашивать логгеры каждый раз при отрисовке окна):
         self.multiagentmind_logger = None  # "локальный" логгер для этого модуля
         self.system_logger = None          # системный логгер
+
+    def read_config(self):
+        self.config = configparser.ConfigParser()
+        if not self.config.read(self.config_file_name):
+            return
+
+        try:
+            self.win_width = int(self.config['window']['width'])
+            self.win_height = int(self.config['window']['height'])
+            self.win_x = int(self.config['window']['x'])
+            self.win_y = int(self.config['window']['y'])
+        except KeyError:
+            pass  # поскольку все поля имеют значения по умолчанию
+
+        self.check_config()
+
+    def check_config(self):
+        if self.win_width < 100:
+            self.win_width = 100
+        if self.win_height < 100:
+            self.win_height = 100
+
+    def write_config(self):
+        self.config['window']['width'] = str(self.win_width)
+        self.config['window']['height'] = str(self.win_height)
+        self.config['window']['x'] = str(self.win_x)
+        self.config['window']['y'] = str(self.win_y)
+        try:
+            with open(self.config_file_name, mode='w+t') as fp:
+                self.config.write(fp)
+        except OSError:
+            return
 
     def on_window_resize(self):
         glfw.make_context_current(self.window)
@@ -244,6 +283,10 @@ class WorldViewer(basis.Entity):
         self.win_height = height
         self.on_window_resize()
 
+    def window_pos_callback(self, window, x, y):
+        self.win_x = x
+        self.win_y = y
+
     def step(self):
         glfw.make_context_current(self.window)
 
@@ -252,6 +295,7 @@ class WorldViewer(basis.Entity):
         glfw.set_window_size(self.window, self.win_width, self.win_height)
 
         if glfw.window_should_close(self.window):
+            self.write_config()
             self.system.shutdown()
 
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
@@ -283,37 +327,36 @@ class WorldViewer(basis.Entity):
         self.render_engine.render(imgui.get_draw_data())
         glfw.swap_buffers(self.window)
 
+    def init_glfw(self):
+        # Initialize the GLFW library
+        if not glfw.init():
+            return
 
-def init_glfw():
-    # Initialize the GLFW library
-    if not glfw.init():
-        return
+        # OpenGL 3 or above is required
+        glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+        glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+        glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+        glfw.window_hint(glfw.RESIZABLE, True)
+        # OpenGL context should be forward-compatible
+        glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, gl.GL_TRUE)
 
-    # OpenGL 3 or above is required
-    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
-    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
-    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-    glfw.window_hint(glfw.RESIZABLE, True)
-    # OpenGL context should be forward-compatible
-    glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, gl.GL_TRUE)
+        # Create a window in windowed mode and it's OpenGL context
+        primary = glfw.get_primary_monitor()  # for GLFWmonitor
+        window = glfw.create_window(
+            self.win_width,  # width, is required here but overwritten by "glfw.set_window_size()" above
+            self.win_height,  # height, is required here but overwritten by "glfw.set_window_size()" above
+            "pyimgui-examples-glfw",  # window name, is overwritten by "glfw.set_window_title()" above
+            None,  # GLFWmonitor: None = windowed mode, 'primary' to choose fullscreen (resolution needs to be adjusted)
+            None  # GLFWwindow
+        )
 
-    # Create a window in windowed mode and it's OpenGL context
-    primary = glfw.get_primary_monitor()  # for GLFWmonitor
-    window = glfw.create_window(
-        WorldViewer.initial_win_width,  # width, is required here but overwritten by "glfw.set_window_size()" above
-        WorldViewer.initial_win_height,  # height, is required here but overwritten by "glfw.set_window_size()" above
-        "pyimgui-examples-glfw",  # window name, is overwritten by "glfw.set_window_title()" above
-        None,  # GLFWmonitor: None = windowed mode, 'primary' to choose fullscreen (resolution needs to be adjusted)
-        None  # GLFWwindow
-    )
+        # Exception handler if window wasn't created
+        if not window:
+            glfw.terminate()
+            return
 
-    # Exception handler if window wasn't created
-    if not window:
-        glfw.terminate()
-        return
+        # Makes window current on the calling thread
+        glfw.make_context_current(window)
 
-    # Makes window current on the calling thread
-    glfw.make_context_current(window)
-
-    # Passing window to main()
-    return window
+        # Passing window to main()
+        return window

@@ -6,5 +6,5 @@ __pycache__
 /.idea
 /*.bat
 /*.sh
-imgui.ini
+*.ini
 
