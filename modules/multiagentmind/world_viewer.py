@@ -35,6 +35,7 @@ class WorldViewer(basis.Entity):
         self.win_y = 10
         self.win_width = 1024
         self.win_height = 768
+        self.win_maximized = 0
         self.read_config()
         self.may_be_paused = False
         self.window = self.init_glfw()
@@ -42,6 +43,7 @@ class WorldViewer(basis.Entity):
         self.render_engine = GlfwRenderer(self.window)
         glfw.set_window_size_callback(self.window, self.window_size_callback)
         glfw.set_window_pos_callback(self.window, self.window_pos_callback)
+        glfw.set_window_maximize_callback(self.window, self.window_maximize_callback)
 
         glfw.make_context_current(self.window)
 
@@ -54,6 +56,8 @@ class WorldViewer(basis.Entity):
         self.on_window_resize()
 
         glfw.set_window_pos(self.window, self.win_x, self.win_y)
+        if self.win_maximized:
+            glfw.maximize_window(self.window)
 
         # alpha blending (for transparency, semi-transparency, etc.)
         gl.glEnable(gl.GL_BLEND)
@@ -83,6 +87,7 @@ class WorldViewer(basis.Entity):
             self.win_height = int(self.config['window']['height'])
             self.win_x = int(self.config['window']['x'])
             self.win_y = int(self.config['window']['y'])
+            self.win_maximized = int(self.config['window']['maximized'])
         except KeyError:
             pass  # поскольку все поля имеют значения по умолчанию
 
@@ -99,6 +104,7 @@ class WorldViewer(basis.Entity):
         self.config['window']['height'] = str(self.win_height)
         self.config['window']['x'] = str(self.win_x)
         self.config['window']['y'] = str(self.win_y)
+        self.config['window']['maximized'] = str(self.win_maximized)
         try:
             with open(self.config_file_name, mode='w+t') as fp:
                 self.config.write(fp)
@@ -286,6 +292,9 @@ class WorldViewer(basis.Entity):
     def window_pos_callback(self, window, x, y):
         self.win_x = x
         self.win_y = y
+
+    def window_maximize_callback(self, window, maximized):
+        self.win_maximized = maximized
 
     def step(self):
         glfw.make_context_current(self.window)
