@@ -24,6 +24,14 @@ class Obstacle(basis.Entity):
         self.position = glm.ivec2(0, 0)
 
 
+class Neuron:
+    """
+    Нейрон.
+    """
+    def __init__(self):
+        self.active = False
+
+
 class Boredom(basis.Entity):
     """
     "Скука" - сущность, появляющаяся у агента в состоянии бездействия и побуждающая его что-то делать.
@@ -38,6 +46,7 @@ class ObstacleAhead(basis.Entity):
     """
     def __init__(self, system):
         super().__init__(system)
+        self.neuron = Neuron()
 
 
 class ObstacleCollision(basis.Entity):
@@ -46,6 +55,7 @@ class ObstacleCollision(basis.Entity):
     """
     def __init__(self, system):
         super().__init__(system)
+        self.neuron = Neuron()
 
 
 class Action:
@@ -57,6 +67,16 @@ class Action:
         self.object = None    # объект действия
 
 
+class StayIdleAction(basis.Entity):
+    """
+    Действие 'стоять на месте'.
+    """
+    def __init__(self, system):
+        super().__init__(system)
+        self.action = Action()
+        self.neuron = Neuron()
+
+
 class MoveForwardAction(basis.Entity):
     """
     Действие 'двигаться вперёд'.
@@ -64,6 +84,7 @@ class MoveForwardAction(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.action = Action()
+        self.neuron = Neuron()
 
     def step(self):
         super().step()
@@ -90,6 +111,7 @@ class TurnLeftAction(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.action = Action()
+        self.neuron = Neuron()
 
     def step(self):
         super().step()
@@ -111,6 +133,7 @@ class TurnRightAction(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
         self.action = Action()
+        self.neuron = Neuron()
 
     def step(self):
         super().step()
@@ -125,59 +148,9 @@ class TurnRightAction(basis.Entity):
         self.action.is_done = True
 
 
-class Frame(basis.Entity):
-    """
-    Кадр - основой структурный элемент памяти агента.
-    """
+class Memory(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
-
-    def make_trace_of(self, frame):
-        """
-        Создать в данном кадре 'след' другого кадра (в простейшем случае делаем копии всех сущностей).
-        :param frame: кадр, который мы копируем
-        :return:
-        """
-        for ent in frame.entities:
-            ent_copy = ent.clone()
-            self.add_entity(ent_copy)
-
-
-class FrameSequence(basis.Entity):
-    """
-    Последовательность кадров.
-    """
-    def __init__(self, system):
-        super().__init__(system)
-        self.max_capacity = 3
-        self.frames = list()
-
-    def size(self):
-        return len(self.frames)
-
-    def new_frame(self):
-        """
-        Добавить новый кадр. Если кадров слишком много, самый старый будет удалён.
-        :return: только что созданный кадр
-        """
-        frame = self.add_new(Frame)
-        self.frames.insert(0, frame)  # в начало
-        if len(self.frames) > self.max_capacity:
-            oldest_frame = self.frames.pop()
-            if oldest_frame:
-                oldest_frame.abolish()
-
-        return frame
-
-    def most_recent_frame(self):
-        """
-        Получить самый свежий кадр (последний добавленный).
-        :return:
-        """
-        if self.frames:
-            return self.frames[0]
-
-        return None
 
 
 class Agent(basis.Entity):
@@ -186,11 +159,7 @@ class Agent(basis.Entity):
         self.board = None
         self.position = glm.ivec2(0, 0)
         self.orientation = glm.ivec2(1, 0)
-        self.short_memory = self.add_new(FrameSequence) # кратковременная память - последовательность кадров
-        self.short_memory.max_capacity = 100
-        self.long_memory = list()  # долговременная память - набор последовательностей кадров
-        self.long_memory_capacity = 10  # ёмкость долговременной памяти (кол-во хранимых последовательностей кадров)
-        self.current_frame = self.add_new(Frame)  # текущий (рабочий) кадр
+        self.memory = self.add_new(Memory)
         self.collision_count = 0  # счетчик столкновений с препятствиями
         self.message = None  # диагностическое сообщение (если есть)
         self.logger = logging.getLogger("multiagentmind")
@@ -198,50 +167,22 @@ class Agent(basis.Entity):
         stream_handler = logging.StreamHandler(sys.stdout)
         self.logger.addHandler(stream_handler)
 
+    def create(self, source=None):
+        super().create(source)
+        self.memory.add_new(ObstacleAhead)
+        self.memory.add_new(ObstacleCollision)
+        self.memory.add_new(StayIdleAction)
+        self.memory.add_new(TurnLeftAction)
+        self.memory.add_new(TurnRightAction)
+        self.memory.add_new(MoveForwardAction)
+
     def set_board(self, board):
         self.board = board
         self.board.add_agent(self)
 
-    def compare_frames(self, first, second):
-        """
-        Сравнить два кадра и вернуть степень подобия по 100-балльной шкале
-        :param first:
-        :param second:
-        :return:
-        """
-        return 0
-
-    def find_best_association(self, frame):
-        """
-        Найти наилучшую ассоциацию для данного кадра.
-        :param frame:
-        :return:
-        """
-        best_score = 0
-        best_seq = None
-        for seq in self.long_memory:
-            if not seq:
-                continue
-            start_frame = seq[0]
-            score = self.compare_frames(frame, start_frame)
-            if score > best_score:
-                best_seq = seq
-                best_score = score
-
-        return best_seq
-
-    def short_to_long_memory(self):
-        """
-        Перенести содержимое оперативной памяти в долговременную.
-        :return:
-        """
-        self.long_memory.insert(0, self.short_memory)
-        if len(self.long_memory) > self.long_memory_capacity:
-            self.long_memory.pop()
-
     def do_step(self):
         # выполнить действия, запланированные на предыдущем шаге (шагах), ненужные затем удалить:
-        for ent in self.current_frame.entities.copy():
+        for ent in self.memory.entities.copy():
             action = ent.get_facet(Action)  #TODO продумать механизм граней (как замену наследованию)
             if not action:
                 continue
@@ -257,10 +198,10 @@ class Agent(basis.Entity):
         if self.board.is_obstacle(x_ahead, y_ahead):
             self.logger.debug("obstacle ahead at step {}: ({}, {})".format(self._local_step_counter, x_ahead, y_ahead))
 
-            if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
-                self.current_frame.add_new(ObstacleAhead)
+            if not self.memory.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
+                self.memory.add_new(ObstacleAhead)
         else:
-            self.current_frame.abolish_children(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
+            self.memory.abolish_children(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
 
         # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
         if self.board.is_obstacle(self.position.x, self.position.y):
@@ -269,10 +210,10 @@ class Agent(basis.Entity):
                                                                       self.position.y))
 
             self.message = "Collision: obstacle at ({}, {})".format(self.position.x, self.position.y)
-            if not self.current_frame.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
-                self.current_frame.add_new(ObstacleCollision)
+            if not self.memory.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
+                self.memory.add_new(ObstacleCollision)
         else:
-            self.current_frame.abolish_children(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
+            self.memory.abolish_children(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
 
         self.logger.debug("Action for step {}:".format(self._local_step_counter))
 
@@ -282,15 +223,15 @@ class Agent(basis.Entity):
             pass
         if choice == AgentAction.MoveForward:
             self.logger.debug("    move forward")
-            fwd_act = self.current_frame.add_new(MoveForwardAction)
+            fwd_act = self.memory.add_new(MoveForwardAction)
             fwd_act.action.object = self
         if choice == AgentAction.TurnLeft:
             self.logger.debug("    turn left")
-            tl_act = self.current_frame.add_new(TurnLeftAction)
+            tl_act = self.memory.add_new(TurnLeftAction)
             tl_act.action.object = self
         if choice == AgentAction.TurnRight:
             self.logger.debug("    turn right")
-            tr_act = self.current_frame.add_new(TurnRightAction)
+            tr_act = self.memory.add_new(TurnRightAction)
             tr_act.action.object = self
 
     def step(self):
@@ -301,23 +242,16 @@ class Agent(basis.Entity):
         if not self.board:
             return
 
-        # создаем новый кадр в памяти
-        prev_frame = self.short_memory.new_frame()
-        # создаем в только что созданном кадре "следы" сущностей из текущего кадра
-        prev_frame.make_trace_of(self.current_frame)
-
-        if self.current_frame.is_empty():
-            boredom = self.current_frame.add_new(Boredom)
+        if self.memory.is_empty():
+            boredom = self.memory.add_new(Boredom)
             if boredom:
-                self.current_frame.activate(boredom)
+                self.memory.activate(boredom)
 
-        boredom = basis.first_of(self.current_frame.get_entities_by_type(Boredom))
+        boredom = basis.first_of(self.memory.get_entities_by_type(Boredom))
         if boredom:
             self.do_step()
             #boredom.remove()
 
-        # запомнить недавнюю последовательность кадров
-        #self.short_to_long_memory()
 
 def angle(vector1, vector2):
     """

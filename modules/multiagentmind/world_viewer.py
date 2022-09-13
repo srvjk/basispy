@@ -138,12 +138,12 @@ class WorldViewer(basis.Entity):
         projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
         poly_shader.set_matrix4("projection", projection)
 
-    def display_frame(self, frame):
+    def display_memory(self, memory):
         """
-        Отобразить информацию по одному временнОму кадру
+        Отобразить содержимое памяти
         :return:
         """
-        for ent in frame.entities:
+        for ent in memory.entities:
             name = ent.name if ent.name else 'noname'
             text = "{} ({}, {})".format(str(ent.uuid), basis.qual_class_name(ent), name)
             imgui.text(text)
@@ -200,17 +200,11 @@ class WorldViewer(basis.Entity):
             xr = round(self.agent.position.x)
             imgui.text("Agent pos.: ({}, {})".format(self.agent.position.x, self.agent.position.y))
             imgui.text("Agent ort.: ({}, {})".format(self.agent.orientation.x, self.agent.orientation.y))
-            imgui.text("Short memory: {} items".format(self.agent.short_memory.size()))
             imgui.text("Collisions: {}".format(self.agent.collision_count))
 
-            imgui.text_colored("Current frame:", 1.0, 1.0, 0.0)
-            if self.agent.current_frame:
-                self.display_frame(self.agent.current_frame)
-
-            imgui.text_colored("Last frame:", 0.0, 1.0, 1.0)
-            last_frame = self.agent.short_memory.most_recent_frame()
-            if last_frame:
-                self.display_frame(last_frame)
+            imgui.text_colored("Memory:", 1.0, 1.0, 0.0)
+            if self.agent.memory:
+                self.display_memory(self.agent.memory)
 
             if self.agent.message:
                 imgui.text(self.agent.message)

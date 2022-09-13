@@ -46,6 +46,14 @@ class Entity:
         self.may_be_paused = True        # можно ли ставить эту сущность на паузу
         self._local_step_counter = 0     # локальный счетчик шагов данной сущности
 
+    def create(self, source=None):
+        """
+        Создать экземпляр сущности. Возможно, из внешнего источника.
+        :param source: если задано, будет использовано в качестве внешнего источника для создания сущности
+        :return:
+        """
+        pass
+
     def clear(self):
         self.entity_name_index.clear()
         self.active_entities.clear()
