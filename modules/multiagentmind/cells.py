@@ -191,6 +191,7 @@ class Agent(basis.Entity):
         self.long_memory = list()  # долговременная память - набор последовательностей кадров
         self.long_memory_capacity = 10  # ёмкость долговременной памяти (кол-во хранимых последовательностей кадров)
         self.current_frame = self.add_new(Frame)  # текущий (рабочий) кадр
+        self.collision_count = 0  # счетчик столкновений с препятствиями
         self.message = None  # диагностическое сообщение (если есть)
         self.logger = logging.getLogger("multiagentmind")
         self.logger.setLevel(logging.DEBUG)
@@ -263,6 +264,7 @@ class Agent(basis.Entity):
 
         # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
         if self.board.is_obstacle(self.position.x, self.position.y):
+            self.collision_count += 1
             self.logger.debug("collision at step {}: ({}, {})".format(self._local_step_counter, self.position.x,
                                                                       self.position.y))
 

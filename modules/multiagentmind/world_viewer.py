@@ -201,6 +201,7 @@ class WorldViewer(basis.Entity):
             imgui.text("Agent pos.: ({}, {})".format(self.agent.position.x, self.agent.position.y))
             imgui.text("Agent ort.: ({}, {})".format(self.agent.orientation.x, self.agent.orientation.y))
             imgui.text("Short memory: {} items".format(self.agent.short_memory.size()))
+            imgui.text("Collisions: {}".format(self.agent.collision_count))
 
             imgui.text_colored("Current frame:", 1.0, 1.0, 0.0)
             if self.agent.current_frame:
