@@ -171,68 +171,109 @@ class Agent(basis.Entity):
         super().create(source)
         self.memory.add_new(ObstacleAhead)
         self.memory.add_new(ObstacleCollision)
-        self.memory.add_new(StayIdleAction)
-        self.memory.add_new(TurnLeftAction)
-        self.memory.add_new(TurnRightAction)
-        self.memory.add_new(MoveForwardAction)
+        act = self.memory.add_new(StayIdleAction)
+        act.action.object = self
+        self.memory.activate(act)
+        act = self.memory.add_new(TurnLeftAction)
+        act.action.object = self
+        self.memory.activate(act)
+        act = self.memory.add_new(TurnRightAction)
+        act.action.object = self
+        self.memory.activate(act)
+        act = self.memory.add_new(MoveForwardAction)
+        act.action.object = self
+        self.memory.activate(act)
 
     def set_board(self, board):
         self.board = board
         self.board.add_agent(self)
 
     def do_step(self):
-        # выполнить действия, запланированные на предыдущем шаге (шагах), ненужные затем удалить:
+        # выполнить действия, запланированные на предыдущем шаге:
         for ent in self.memory.entities.copy():
-            action = ent.get_facet(Action)  #TODO продумать механизм граней (как замену наследованию)
+            action = ent.get_facet(Action)
             if not action:
                 continue
-            ent.step()
-            if action.is_done:
-                ent.abolish()
+            neuron = ent.get_facet(Neuron)
+            if not neuron:
+                continue
+            if neuron.active:
+                ent.step()
 
         x_ahead, y_ahead = self.board.normalized_coordinates(
             *((self.position + self.orientation).to_tuple())
             )
 
         # проверка на наличие препятствия прямо по курсу
-        if self.board.is_obstacle(x_ahead, y_ahead):
-            self.logger.debug("obstacle ahead at step {}: ({}, {})".format(self._local_step_counter, x_ahead, y_ahead))
-
-            if not self.memory.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
-                self.memory.add_new(ObstacleAhead)
-        else:
-            self.memory.abolish_children(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
+        ent = basis.first_of(self.memory.get_entities_by_type(ObstacleAhead))
+        if ent:
+            ent.neuron.active = self.board.is_obstacle(x_ahead, y_ahead)
+            if ent.neuron.active:
+                self.logger.debug("obstacle ahead at step {}: ({}, {})".format(self._local_step_counter,
+                                                                               x_ahead, y_ahead))
 
         # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
-        if self.board.is_obstacle(self.position.x, self.position.y):
-            self.collision_count += 1
-            self.logger.debug("collision at step {}: ({}, {})".format(self._local_step_counter, self.position.x,
-                                                                      self.position.y))
+        ent = basis.first_of(self.memory.get_entities_by_type(ObstacleCollision))
+        if ent:
+            ent.neuron.active = self.board.is_obstacle(self.position.x, self.position.y)
+            if ent.neuron.active:
+                self.logger.debug("collision at step {}: ({}, {})".format(self._local_step_counter, self.position.x,
+                                                                          self.position.y))
 
-            self.message = "Collision: obstacle at ({}, {})".format(self.position.x, self.position.y)
-            if not self.memory.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
-                self.memory.add_new(ObstacleCollision)
-        else:
-            self.memory.abolish_children(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
 
-        self.logger.debug("Action for step {}:".format(self._local_step_counter))
-
-        choice = random.choice(list(AgentAction))
-        if choice == AgentAction.NoAction:
-            self.logger.debug("    no action")
-            pass
-        if choice == AgentAction.MoveForward:
-            self.logger.debug("    move forward")
-            fwd_act = self.memory.add_new(MoveForwardAction)
-            fwd_act.action.object = self
-        if choice == AgentAction.TurnLeft:
-            self.logger.debug("    turn left")
-            tl_act = self.memory.add_new(TurnLeftAction)
-            tl_act.action.object = self
-        if choice == AgentAction.TurnRight:
-            self.logger.debug("    turn right")
-            tr_act = self.memory.add_new(TurnRightAction)
-            tr_act.action.object = self
+    # def do_step(self):
+    #     # выполнить действия, запланированные на предыдущем шаге (шагах), ненужные затем удалить:
+    #     for ent in self.memory.entities.copy():
+    #         action = ent.get_facet(Action)  #TODO продумать механизм граней (как замену наследованию)
+    #         if not action:
+    #             continue
+    #         ent.step()
+    #         if action.is_done:
+    #             ent.abolish()
+    #
+    #     x_ahead, y_ahead = self.board.normalized_coordinates(
+    #         *((self.position + self.orientation).to_tuple())
+    #         )
+    #
+    #     # проверка на наличие препятствия прямо по курсу
+    #     if self.board.is_obstacle(x_ahead, y_ahead):
+    #         self.logger.debug("obstacle ahead at step {}: ({}, {})".format(self._local_step_counter, x_ahead, y_ahead))
+    #
+    #         if not self.memory.has_one_of(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead'):
+    #             self.memory.add_new(ObstacleAhead)
+    #     else:
+    #         self.memory.abolish_children(condition=lambda x: basis.short_class_name(x)=='ObstacleAhead')
+    #
+    #     # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
+    #     if self.board.is_obstacle(self.position.x, self.position.y):
+    #         self.collision_count += 1
+    #         self.logger.debug("collision at step {}: ({}, {})".format(self._local_step_counter, self.position.x,
+    #                                                                   self.position.y))
+    #
+    #         self.message = "Collision: obstacle at ({}, {})".format(self.position.x, self.position.y)
+    #         if not self.memory.has_one_of(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision'):
+    #             self.memory.add_new(ObstacleCollision)
+    #     else:
+    #         self.memory.abolish_children(condition=lambda x: basis.short_class_name(x) == 'ObstacleCollision')
+    #
+    #     self.logger.debug("Action for step {}:".format(self._local_step_counter))
+    #
+    #     choice = random.choice(list(AgentAction))
+    #     if choice == AgentAction.NoAction:
+    #         self.logger.debug("    no action")
+    #         pass
+    #     if choice == AgentAction.MoveForward:
+    #         self.logger.debug("    move forward")
+    #         fwd_act = self.memory.add_new(MoveForwardAction)
+    #         fwd_act.action.object = self
+    #     if choice == AgentAction.TurnLeft:
+    #         self.logger.debug("    turn left")
+    #         tl_act = self.memory.add_new(TurnLeftAction)
+    #         tl_act.action.object = self
+    #     if choice == AgentAction.TurnRight:
+    #         self.logger.debug("    turn right")
+    #         tr_act = self.memory.add_new(TurnRightAction)
+    #         tr_act.action.object = self
 
     def step(self):
         super().step()
@@ -242,15 +283,7 @@ class Agent(basis.Entity):
         if not self.board:
             return
 
-        if self.memory.is_empty():
-            boredom = self.memory.add_new(Boredom)
-            if boredom:
-                self.memory.activate(boredom)
-
-        boredom = basis.first_of(self.memory.get_entities_by_type(Boredom))
-        if boredom:
-            self.do_step()
-            #boredom.remove()
+        self.do_step()
 
 
 def angle(vector1, vector2):
