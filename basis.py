@@ -205,6 +205,28 @@ class Entity:
                 result.extend(tmp_res)
         return result
 
+    def get_entities(self, criterion):
+        """ Найти все вложенные сущности, удовлетворяющие критерию criterion """
+        result = list()
+        for ent in self.entities:
+            if criterion(ent):
+                result.append(ent)
+
+        return result
+
+    def get_entities_recursively(self, criterion):
+        """ Найти рекурсивно все вложенные сущности, удовлетворяющие критерию criterion """
+        result = list()
+        for ent in self.entities:
+            if criterion(ent):
+                result.append(ent)
+            tmp_res = ent.get_entities_recursively(criterion)
+            if tmp_res:
+                result.extend(tmp_res)
+
+        return result
+
+
     def on_entity_renamed(self, entity, old_name, new_name) -> bool:
         if entity not in self.entities:
             return False  # no such entity at all
@@ -258,6 +280,13 @@ class Entity:
                 return v
 
         return None
+
+    def has_facet(self, type_name):  #TODO временно, переделать!
+        for k, v in inspect.getmembers(self):
+            if isinstance(v, type_name):
+                return True
+
+        return False
 
     def step(self):
         self._local_step_counter += 1

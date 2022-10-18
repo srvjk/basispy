@@ -251,6 +251,47 @@ class WorldViewer(basis.Entity):
 
         imgui.end()
 
+    def draw_neuron_window(self):
+        """ Показать окно нейросети """
+        imgui.begin("Neurons")
+
+        memory = self.agent.memory
+
+        neurons = memory.get_entities(lambda x: x.has_facet(cells.Neuron))
+        n = len(neurons)
+
+        color_neuron_active = (1.0, 0.0, 0.0)
+        color_neuron_inactive = (1.0, 1.0, 1.0)
+
+        imgui.text(" ")
+        imgui.same_line()
+        for col in range(n):
+            neuron = neurons[col].get_facet(cells.Neuron)
+            color = color_neuron_active if neuron.active else color_neuron_inactive
+            imgui.push_style_color(imgui.COLOR_TEXT, *color)
+            imgui.text(str(col))
+            imgui.pop_style_color(1)
+            imgui.same_line()
+        imgui.new_line()
+        for row in range(n):
+            imgui.text(str(row))
+            imgui.same_line()
+            for col in range(n):
+                imgui.text("*")
+                imgui.same_line()
+            imgui.new_line()
+
+        # for ent in memory.entities:
+        #     neuron = ent.get_facet(cells.Neuron)
+        #     if not neuron:
+        #         continue
+        #     text = "{} ".format(ent.uuid)
+        #     if neuron.active:
+        #         text += "*"
+        #     imgui.text(text)
+
+        imgui.end()
+
     def draw_log_window(self):
         if not self.multiagentmind_logger:
             self.multiagentmind_logger = logging.getLogger("multiagentmind")
@@ -311,6 +352,7 @@ class WorldViewer(basis.Entity):
 
         self.draw_info_window()
         self.draw_entities_window()
+        self.draw_neuron_window()
         self.draw_control_window()
         self.draw_log_window()
 

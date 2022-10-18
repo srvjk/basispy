@@ -31,6 +31,9 @@ class Neuron:
     def __init__(self):
         self.active = False
 
+    def do_activation(self):
+        self.active = (random.randint(1, 100) > 70)
+
 
 class Boredom(basis.Entity):
     """
@@ -219,6 +222,20 @@ class Agent(basis.Entity):
             if ent.neuron.active:
                 self.logger.debug("collision at step {}: ({}, {})".format(self._local_step_counter, self.position.x,
                                                                           self.position.y))
+
+        # ищем в памяти агента сущности-нейроны и активируем их, если нужно
+        for e in self.memory.entities:
+            neuron = e.get_facet(Neuron)
+            if neuron:
+                neuron.do_activation()
+
+        # ищем внутри агента сущности с набором граней (Action, Neuron); если они активны как нейроны, выполняем их как
+        # действия
+        entities = self.memory.get_entities(lambda x: x.has_facet(Action) and x.has_facet(Neuron))
+        for e in entities:
+            neuron = e.get_facet(Neuron)
+            if neuron.active:
+                ent.step()
 
 
     # def do_step(self):
