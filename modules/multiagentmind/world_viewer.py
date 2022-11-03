@@ -277,9 +277,23 @@ class WorldViewer(basis.Entity):
             imgui.text(str(row))
             imgui.same_line()
             for col in range(n):
-                imgui.text("*")
+                key = (neurons[row].uuid, neurons[col].uuid)
+                lnk = None
+                try:
+                    lnk = memory.links[key]
+                except KeyError:
+                    pass
+                if lnk:
+                    imgui.text(str(lnk.strength))
+                else:
+                    imgui.text(" ")
                 imgui.same_line()
             imgui.new_line()
+
+        imgui.text("----------")
+
+        for i in range(n):
+            imgui.text("{} : {}".format(i, basis.qual_class_name(neurons[i])))
 
         # for ent in memory.entities:
         #     neuron = ent.get_facet(cells.Neuron)

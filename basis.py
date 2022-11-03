@@ -39,7 +39,8 @@ class Entity:
         self.uuid = uuid.uuid4()         # глобально уникальный, случайно генерируемый идентификатор сущности
         self.name = name                 # имя сущности (не обязано быть уникальным)
         self.system = system             # ссылка на систему
-        self.parent = None               # ссылка на родительскую сущность
+        self.base = None                 # ссылка на базовую сущность (для граней) TODO не объединить ли с container ?
+        self.container = None            # ссылка на контейнер (для вложенных сущностей)
         self.entities = set()            # вложенные сущности
         self.active_entities = set()     # перечень активных сущностей (т.е. таких, для которых вызывается step())
         self.entity_name_index = dict()  # индекс вложенных сущностей с доступом по имени
@@ -106,8 +107,8 @@ class Entity:
         before = self.system.get_entities_total()
         type_name = type(self)
 
-        if self.parent:
-            self.parent.remove_entity(self)
+        if self.container:
+            self.container.remove_entity(self)
         if self.system:
             self.system.unregister_entity(self)
         after = self.system.get_entities_total()
@@ -134,7 +135,7 @@ class Entity:
         if entity in self.entities:
             return True
 
-        entity.parent = self
+        entity.container = self
         entity.system = self.system
         self.entities.add(entity)
         if entity.name:
@@ -273,6 +274,14 @@ class Entity:
 
     def get_local_step_counter(self):
         return self._local_step_counter
+
+    def new_facet(self, type_name):
+        fct = type_name()
+        if not fct:
+            return None
+        fct.base = self
+
+        return fct
 
     def get_facet(self, type_name):  #TODO временно, переделать!
         for k, v in inspect.getmembers(self):
