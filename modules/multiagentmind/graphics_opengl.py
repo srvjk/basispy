@@ -361,4 +361,3 @@ class TextRenderer:
             x += (ch_descr.advance >> 6) * scale
 
 
-resource_manager = ResourceManager()

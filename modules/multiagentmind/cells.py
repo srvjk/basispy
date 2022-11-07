@@ -497,7 +497,7 @@ class Board(basis.Entity):
                 return True
         return False
 
-    def draw(self, renderer, pos, size):
+    def draw(self, renderer, resource_manager, pos, size):
         x0 = pos[0]
         y0 = pos[1]
         width = size[0]
@@ -505,7 +505,7 @@ class Board(basis.Entity):
         cell_width = width / self.size
         cell_height = height / self.size
 
-        polygon = gogl.Polygon(gogl.resource_manager.get_shader("polygon"))
+        polygon = gogl.Polygon(resource_manager.get_shader("polygon"))
         polygon.set_points([
             glm.vec2(0.0, 0.0),
             glm.vec2(1.0, 0.0),
@@ -518,7 +518,7 @@ class Board(basis.Entity):
         for obstacle in self.obstacles:
             if isinstance(obstacle, Obstacle):
                 try:
-                    renderer.draw_sprite(gogl.resource_manager.get_texture("obstacle"),
+                    renderer.draw_sprite(resource_manager.get_texture("obstacle"),
                                          glm.vec2(x0 + obstacle.position.x * cell_width,
                                                   y0 + obstacle.position.y * cell_height),
                                          glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
@@ -529,7 +529,7 @@ class Board(basis.Entity):
             if isinstance(agent, Agent):
                 try:
                     ang = angle(glm.vec2(1, 0), agent.orientation)
-                    renderer.draw_sprite(gogl.resource_manager.get_texture("agent"),
+                    renderer.draw_sprite(resource_manager.get_texture("agent"),
                                          glm.vec2(x0 + agent.position.x * cell_width,
                                                   y0 + agent.position.y * cell_height),
                                          glm.vec2(cell_width, cell_height), glm.degrees(ang), glm.vec3(1.0))
@@ -543,7 +543,7 @@ class Board(basis.Entity):
             if isinstance(agent, Agent):
                 agent_center = glm.vec2(x0 + agent.position.x * cell_width + 0.5 * cell_width,
                                         y0 + agent.position.y * cell_height + 0.5 * cell_height)
-                polygon = gogl.Polygon(gogl.resource_manager.get_shader("polygon"))
+                polygon = gogl.Polygon(resource_manager.get_shader("polygon"))
                 polygon.set_points([
                     glm.vec2(0.0, 0.0),
                     agent.orientation

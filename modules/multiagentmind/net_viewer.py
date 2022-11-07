@@ -27,6 +27,12 @@ class NetViewer(basis.Entity):
 
         glfw.make_context_current(self.window)
 
+        self.resource_manager = gogl.ResourceManager()
+
+        self.resource_manager.load_shader("sprite", "sprite.vs", "sprite.fs")
+        self.resource_manager.load_shader("polygon", "polygon.vs", "polygon.fs")
+        self.resource_manager.load_shader("freetypetext", "freetypetext.vs", "freetypetext.fs")
+
         self.renderer = None
         self.text_renderer = None
         self.on_window_resize()
@@ -38,6 +44,8 @@ class NetViewer(basis.Entity):
         # alpha blending (for transparency, semi-transparency, etc.)
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+
+        self.resource_manager.load_texture("background.png", False, "background")
 
         self.agent = None
         self.agent_id = None
@@ -81,6 +89,28 @@ class NetViewer(basis.Entity):
 
         gl.glViewport(0, 0, self.win_width, self.win_height)
 
+        sprite_shader = self.resource_manager.get_shader("sprite")
+        sprite_shader.use()
+        sprite_shader.set_integer("image", 0)
+        #projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+        projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
+        sprite_shader.set_matrix4("projection", projection)
+        self.renderer = gogl.SpriteRenderer(sprite_shader)
+
+        text_shader = self.resource_manager.get_shader("freetypetext")
+        text_shader.use()
+        text_shader.set_integer("text", 0)
+        projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
+        text_shader.set_matrix4("projection", projection)
+        self.text_renderer = gogl.TextRenderer(text_shader)
+        self.text_renderer.make_face("res/TerminusTTFWindows-4.46.0.ttf")
+
+        poly_shader = self.resource_manager.get_shader("polygon")
+        poly_shader.use()
+        #projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
+        projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
+        poly_shader.set_matrix4("projection", projection)
+
     def window_size_callback(self, window, width, height):
         self.win_width = width
         self.win_height = height
@@ -98,6 +128,21 @@ class NetViewer(basis.Entity):
         y0 = pos[1]
         width = size[0]
         height = size[1]
+
+        x0 = pos[0]
+        y0 = pos[1]
+        width = size[0]
+        height = size[1]
+
+        polygon = gogl.Polygon(self.resource_manager.get_shader("polygon"))
+        polygon.set_points([
+            glm.vec2(0.0, 0.0),
+            glm.vec2(1.0, 0.0),
+            glm.vec2(1.0, 1.0),
+            glm.vec2(0.0, 1.0),
+            glm.vec2(0.0, 0.0)
+        ])
+        polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1), True)
 
     def step(self):
         if not self.agent:

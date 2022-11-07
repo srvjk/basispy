@@ -47,9 +47,11 @@ class WorldViewer(basis.Entity):
 
         glfw.make_context_current(self.window)
 
-        gogl.resource_manager.load_shader("sprite", "sprite.vs", "sprite.fs")
-        gogl.resource_manager.load_shader("polygon", "polygon.vs", "polygon.fs")
-        gogl.resource_manager.load_shader("freetypetext", "freetypetext.vs", "freetypetext.fs")
+        self.resource_manager = gogl.ResourceManager()
+
+        self.resource_manager.load_shader("sprite", "sprite.vs", "sprite.fs")
+        self.resource_manager.load_shader("polygon", "polygon.vs", "polygon.fs")
+        self.resource_manager.load_shader("freetypetext", "freetypetext.vs", "freetypetext.fs")
 
         self.renderer = None
         self.text_renderer = None
@@ -64,9 +66,9 @@ class WorldViewer(basis.Entity):
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         self.board = self.system.get_entity_by_name("Board")
-        gogl.resource_manager.load_texture("background.png", False, "background")
-        gogl.resource_manager.load_texture("agent.png", True, "agent")
-        gogl.resource_manager.load_texture("obstacle.png", True, "obstacle")
+        self.resource_manager.load_texture("background.png", False, "background")
+        self.resource_manager.load_texture("agent.png", True, "agent")
+        self.resource_manager.load_texture("obstacle.png", True, "obstacle")
 
         self.agent = None
         self.agent_id = None
@@ -116,15 +118,14 @@ class WorldViewer(basis.Entity):
 
         gl.glViewport(0, 0, self.win_width, self.win_height)
 
-        sprite_shader = gogl.resource_manager.get_shader("sprite")
+        sprite_shader = self.resource_manager.get_shader("sprite")
         sprite_shader.use()
         sprite_shader.set_integer("image", 0)
-        #projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
         projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
         sprite_shader.set_matrix4("projection", projection)
         self.renderer = gogl.SpriteRenderer(sprite_shader)
 
-        text_shader = gogl.resource_manager.get_shader("freetypetext")
+        text_shader = self.resource_manager.get_shader("freetypetext")
         text_shader.use()
         text_shader.set_integer("text", 0)
         projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
@@ -132,9 +133,8 @@ class WorldViewer(basis.Entity):
         self.text_renderer = gogl.TextRenderer(text_shader)
         self.text_renderer.make_face("res/TerminusTTFWindows-4.46.0.ttf")
 
-        poly_shader = gogl.resource_manager.get_shader("polygon")
+        poly_shader = self.resource_manager.get_shader("polygon")
         poly_shader.use()
-        #projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
         projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
         poly_shader.set_matrix4("projection", projection)
 
@@ -375,6 +375,7 @@ class WorldViewer(basis.Entity):
             board_pos_x = (self.win_width - board_image_size) / 2.0
             board_pos_y = (self.win_height - board_image_size) / 2.0
             self.board.draw(self.renderer,
+                            self.resource_manager,
                             (board_pos_x, board_pos_y),
                             (board_image_size, board_image_size)
                             )
