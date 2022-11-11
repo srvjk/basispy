@@ -46,6 +46,7 @@ class NetViewer(basis.Entity):
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         self.resource_manager.load_texture("background.png", False, "background")
+        self.resource_manager.load_texture("neuron.png", True, "neuron")
 
         self.agent = None
         self.agent_id = None
@@ -92,7 +93,6 @@ class NetViewer(basis.Entity):
         sprite_shader = self.resource_manager.get_shader("sprite")
         sprite_shader.use()
         sprite_shader.set_integer("image", 0)
-        #projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
         projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
         sprite_shader.set_matrix4("projection", projection)
         self.renderer = gogl.SpriteRenderer(sprite_shader)
@@ -107,7 +107,6 @@ class NetViewer(basis.Entity):
 
         poly_shader = self.resource_manager.get_shader("polygon")
         poly_shader.use()
-        #projection = glm.ortho(0.0, self.win_width, self.win_height, 0.0)
         projection = glm.ortho(0.0, self.win_width, 0.0, self.win_height)
         poly_shader.set_matrix4("projection", projection)
 
@@ -123,26 +122,72 @@ class NetViewer(basis.Entity):
     def window_maximize_callback(self, window, maximized):
         self.win_maximized = maximized
 
-    def draw_memory(self, memory, pos, size):
+    def draw_memory(self, memory, pos, scale):
         x0 = pos[0]
         y0 = pos[1]
-        width = size[0]
-        height = size[1]
 
-        x0 = pos[0]
-        y0 = pos[1]
-        width = size[0]
-        height = size[1]
+        # polygon = gogl.Polygon(self.resource_manager.get_shader("polygon"))
+        # polygon.set_points([
+        #     glm.vec2(0.0, 0.0),
+        #     glm.vec2(1.0, 0.0),
+        #     glm.vec2(1.0, 1.0),
+        #     glm.vec2(0.0, 1.0),
+        #     glm.vec2(0.0, 0.0)
+        # ])
+        # polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1), True)
 
-        polygon = gogl.Polygon(self.resource_manager.get_shader("polygon"))
-        polygon.set_points([
-            glm.vec2(0.0, 0.0),
-            glm.vec2(1.0, 0.0),
-            glm.vec2(1.0, 1.0),
-            glm.vec2(0.0, 1.0),
-            glm.vec2(0.0, 0.0)
-        ])
-        polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1), True)
+        net_w = 0.0
+        net_h = 0.0
+        top_left = cells.Point(0.0, 0.0, 0.0)
+        bottom_right = cells.Point(0.0, 0.0, 0.0)
+        for ent in memory.entities:
+            neuron = ent.get_facet(cells.Neuron)
+            if not neuron:
+                continue
+
+            if neuron.position.x < top_left.x:
+                top_left.x = neuron.position.x
+            if neuron.position.y < top_left.y:
+                top_left.y = neuron.position.y
+            r = neuron.position.x + neuron.size.x
+            b = neuron.position.y + neuron.size.y
+            if r > bottom_right.x:
+                bottom_right.x = r
+            if b > bottom_right.y:
+                bottom_right.y = b
+
+        for ent in memory.entities:
+            neuron = ent.get_facet(cells.Neuron)
+            if not neuron:
+                continue
+
+            self.renderer.draw_sprite(self.resource_manager.get_texture("neuron"),
+                                 glm.vec2(x0 + neuron.position.x, y0 + neuron.position.y),
+                                 glm.vec2(neuron.size.x, neuron.size.y), 0.0, glm.vec3(1.0))
+
+            info_str = "{} - {}".format(str(ent.uuid.fields[0]), basis.qual_class_name(ent))
+            self.text_renderer.draw_text(info_str, x0 + neuron.position.x, y0 + neuron.position.y, 0.3,
+                                         glm.vec3(1.0, 1.0, 1.0))
+
+        line = gogl.Line(self.resource_manager.get_shader("polygon"))
+
+        arc = gogl.Arc(self.resource_manager.get_shader("polygon"), 1.0, 10)
+
+        for key, lnk in memory.links.items():
+            src_ent = memory.get_entity_by_id(lnk.src_id)
+            if not src_ent:
+                continue
+            dst_ent = memory.get_entity_by_id(lnk.dst_id)
+            if not dst_ent:
+                continue
+            pt_src = glm.vec2(x0 + src_ent.neuron.position.x, y0 + src_ent.neuron.position.y)
+            pt_dst = glm.vec2(x0 + dst_ent.neuron.position.x, y0 + dst_ent.neuron.position.y)
+            lnk_color = glm.vec3(1.0, 1.0, 1.0)
+            #lnk_len = glm.distance(pt_src, pt_dst)
+            lnk_vec = pt_dst - pt_src
+            lnk_len = glm.length(lnk_vec)
+            ang = gogl.angle_between_vectors_2d(glm.vec2(1.0, 0.0), lnk_vec)
+            line.draw(pt_src, (lnk_len, 0.0), glm.degrees(ang), lnk_color)
 
     def step(self):
         if not self.agent:

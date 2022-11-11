@@ -9,6 +9,7 @@ import OpenGL.GL as gl
 import glm
 import graphics_opengl as gogl
 import logging
+from collections.abc import Sequence
 
 
 class AgentAction(Enum):
@@ -36,12 +37,48 @@ class Link:
         self.polarity = 0    # полярность связи ( > 0 для возбуждающих связей, < 0 для тормозящих )
 
 
+class NamedMutableSequence(Sequence):
+    __slots__ = ()
+
+    def __init__(self, *a, **kw):
+        slots = self.__slots__
+        for k in slots:
+            setattr(self, k, kw.get(k))
+
+        if a:
+            for k, v in zip(slots, a):
+                setattr(self, k, v)
+
+    def __str__(self):
+        cls_name = self.__class__.__name__
+        values = ', '.join('%s=%r' % (k, getattr(self, k))
+                           for k in self.__slots__)
+        return '%s(%s)' % (cls_name, values)
+
+    __repr__ = __str__
+
+    def __getitem__(self, item):
+        return getattr(self, self.__slots__[item])
+
+    def __setitem__(self, item, value):
+        return setattr(self, self.__slots__[item], value)
+
+    def __len__(self):
+        return len(self.__slots__)
+
+
+class Point(NamedMutableSequence):
+    __slots__ = ('x', 'y', 'z')
+
+
 class Neuron:
     """
     Нейрон.
     """
     def __init__(self):
         self.active = False
+        self.position = Point(0.0, 0.0, 0.0)  # координаты нейрона в нейросети
+        self.size = Point(10.0, 10.0, 0.0)    # отображаемые размеры нейрона
 
     def do_activation(self, memory):
         """
@@ -275,6 +312,13 @@ class Agent(basis.Entity):
         act = self.memory.add_new(MoveForwardAction)
         act.action.object = self
         self.memory.activate(act)
+
+        #TODO придумать что-нибудь поумнее, чем случайное размещение
+        for ent in self.memory.entities:
+            neuron = ent.get_facet(Neuron)
+            if neuron:
+                neuron.position.x = random.randint(0, 500)
+                neuron.position.y = random.randint(0, 500)
 
     def set_board(self, board):
         self.board = board

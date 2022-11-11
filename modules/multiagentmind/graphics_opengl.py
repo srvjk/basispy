@@ -1,9 +1,27 @@
 import OpenGL.GL as gl
 import glm
+import math
 from PIL import Image
 from numpy import asarray
 import freetype
 
+
+def angle_between_vectors_2d(vec1, vec2):
+    """
+    Вычисляет угол в радианах от вектора vec1 к вектору vec2 (векторы двухмерные).
+    :param vec1:
+    :param vec2:
+    :return:
+    """
+    vec1_norm = glm.normalize(vec1)
+    vec2_norm = glm.normalize(vec2)
+    ang = glm.acos(glm.dot(vec1_norm, vec2_norm))
+    crz = vec1_norm.x * vec2_norm.y - vec2_norm.x * vec1_norm.y
+    if crz < 0:
+        ang *= -1.0
+        #ang += glm.pi()
+
+    return ang
 
 class Shader:
     def __init__(self):
@@ -227,6 +245,45 @@ class SpriteRenderer:
         gl.glBindVertexArray(0)
 
 
+class Line:
+    def __init__(self, shader):
+        self.vao = None
+        self.shader = shader
+        self.vertex_count = 2
+        self.vertices = list()
+        self.vertices.append(0.0)
+        self.vertices.append(0.0)
+        self.vertices.append(1.0)
+        self.vertices.append(0.0)
+
+        self.vao = gl.glGenVertexArrays(1)
+        vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, len(self.vertices) * 4, (gl.GLfloat * len(self.vertices))(*self.vertices),
+                        gl.GL_STATIC_DRAW)
+        gl.glBindVertexArray(self.vao)
+
+        gl.glVertexAttribPointer(0, 2, gl.GL_FLOAT, gl.GL_FALSE, 8, None)
+        gl.glEnableVertexAttribArray(0)
+
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+
+    def draw(self, position, size, rotate, color):
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(position, 0.0))
+        model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        model = glm.scale(model, glm.vec3(size, 1.0))
+
+        self.shader.use()
+        self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("polygonColor", color)
+
+        gl.glBindVertexArray(self.vao)
+        gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
+        gl.glBindVertexArray(0)
+
+
 class Polygon:
     def __init__(self, shader):
         self.vao = None
@@ -273,6 +330,46 @@ class Polygon:
         else:
             gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
         gl.glBindVertexArray(0)
+
+
+class Arc(Polygon):
+    def __init__(self, shader, alpha, num_points):
+        """
+        Инициализация дуги
+        :param shader:
+        :param alpha: радиус кривизны дуги в радианах
+        :param num_points: кол-во промежуточных точек дуги (не считая начальной и конечной)
+        """
+        super().__init__(shader)
+        points = list()
+
+        d = 1.0
+        r = d / glm.sin(alpha)  # радиус дуги
+        d_angle = alpha / (num_points + 1)  # приращение угла между точками ломаной
+        vAB_3 = glm.vec3(r, 0.0, 0.0)
+        vOA_3 = -glm.rotateZ(vAB_3, glm.pi() / 2.0 - alpha / 2.0)
+        vOA_2 = glm.vec2(vOA_3.x, vOA_3.y)
+
+        points.append(0.0)  # A.x
+        points.append(0.0)  # A.y
+
+        angle = 0.0
+        for i in range(num_points):
+            angle += d_angle
+            v_3 = glm.rotateZ(vOA_3, -angle)  # вращаем вокруг центра дуги по часовой стрелке
+            v_2 = glm.vec2(v_3.x, v_3.y)
+            x_v = v_2 - vOA_2
+
+            points.append(x_v.x)
+            points.append(x_v.y)
+
+        points.append(1.0)  # B.x
+        points.append(0.0)  # B.y
+
+        self.set_points(points)
+
+    def draw_by_two_points(self, p1, p2, color, filled):
+        pass
 
 
 class Character:
@@ -360,4 +457,44 @@ class TextRenderer:
             #x_ch += self.char_width
             x += (ch_descr.advance >> 6) * scale
 
+def test():
+    """
+    Юнит-тесты.
+    :return:
+    """
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(1.0, 0.0))
+    if not math.isclose(ang, 0.0):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(0.0, 1.0))
+    if not math.isclose(ang, glm.pi() / 2.0):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(0.0, 1.0), glm.vec2(1.0, 0.0))
+    if not math.isclose(ang, -glm.pi() / 2.0):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(-1.0, 0.0))
+    if not math.isclose(ang, glm.pi()):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(-1.0, 0.0), glm.vec2(1.0, 0.0))
+    if not math.isclose(ang, glm.pi()):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(1.0, 1.0))
+    if not math.isclose(ang, glm.pi() / 4.0, rel_tol=1e-6):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(-1.0, 1.0))
+    if not math.isclose(ang, (3.0 * glm.pi()) / 4.0, rel_tol=1e-6):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(-1.0, -1.0))
+    if not math.isclose(ang, -(3.0 * glm.pi()) / 4.0, rel_tol=1e-6):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(1.0, -1.0))
+    if not math.isclose(ang, -glm.pi() / 4.0, rel_tol=1e-6):
+        return False
 
+    return True
+
+if __name__ == "__main__":
+    res = test()
+    if res:
+        print("unit tests passed successfully for module 'graphics_opengl'")
+    else:
+        print("unit tests FAILED for module 'graphics_opengl'")
