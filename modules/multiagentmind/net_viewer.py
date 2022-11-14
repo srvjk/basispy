@@ -187,7 +187,8 @@ class NetViewer(basis.Entity):
             lnk_vec = pt_dst - pt_src
             lnk_len = glm.length(lnk_vec)
             ang = gogl.angle_between_vectors_2d(glm.vec2(1.0, 0.0), lnk_vec)
-            line.draw(pt_src, (lnk_len, 0.0), glm.degrees(ang), lnk_color)
+            #line.draw(pt_src, (lnk_len, 0.0), glm.degrees(ang), lnk_color)
+            arc.draw_by_two_points(pt_src, pt_dst, lnk_color, False)
 
     def step(self):
         if not self.agent:

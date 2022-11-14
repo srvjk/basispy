@@ -557,7 +557,7 @@ class Board(basis.Entity):
             glm.vec2(0.0, 1.0),
             glm.vec2(0.0, 0.0)
         ])
-        polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1), True)
+        polygon.draw_centered(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1), True)
 
         for obstacle in self.obstacles:
             if isinstance(obstacle, Obstacle):
@@ -592,7 +592,9 @@ class Board(basis.Entity):
                     glm.vec2(0.0, 0.0),
                     agent.orientation
                 ])
-                polygon.draw(agent_center, glm.vec2(cell_width, cell_width), 0.0, glm.vec3(1.0, 1.0, 0.5), False)
+                polygon.draw_centered(
+                    agent_center, glm.vec2(cell_width, cell_width), 0.0, glm.vec3(1.0, 1.0, 0.5), False
+                )
                 # polygon.set_points([
                 #     glm.vec2(0.0, 0.0),
                 #     glm.vec2(1.0, 1.0)

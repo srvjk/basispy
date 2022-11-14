@@ -313,10 +313,46 @@ class Polygon:
         gl.glBindVertexArray(0)
 
     def draw(self, position, size, rotate, color, filled):
+        """
+        Нарисовать ломаную относительно точки position.
+        :param position:
+        :param size:
+        :param rotate:
+        :param color:
+        :param filled:
+        :return:
+        """
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(position, 0.0))
+        model = glm.rotate(model, rotate, glm.vec3(0.0, 0.0, 1.0))
+        model = glm.scale(model, glm.vec3(size, 1.0))
+
+        self.shader.use()
+        self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("polygonColor", color)
+
+        gl.glBindVertexArray(self.vao)
+        if filled:
+            gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, self.vertex_count)
+        else:
+            gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
+        gl.glBindVertexArray(0)
+
+    def draw_centered(self, position, size, rotate, color, filled):
+        """
+        Нарисовать ломаную относительно ее геометрического центра.
+        :param position:
+        :param size:
+        :param rotate:
+        :param color:
+        :param filled:
+        :return:
+        """
         model = glm.mat4(1.0)
         model = glm.translate(model, glm.vec3(position, 0.0))
         model = glm.translate(model, glm.vec3(0.5 * size[0], 0.5 * size[1], 0.0))
-        model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        #model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        model = glm.rotate(model, rotate, glm.vec3(0.0, 0.0, 1.0))
         model = glm.translate(model, glm.vec3(-0.5 * size[0], -0.5 * size[1], 0.0))
         model = glm.scale(model, glm.vec3(size, 1.0))
 
@@ -344,14 +380,14 @@ class Arc(Polygon):
         points = list()
 
         d = 1.0
-        r = d / glm.sin(alpha)  # радиус дуги
+        r = (0.5 * d) / glm.sin(0.5 * alpha)  # радиус дуги
         d_angle = alpha / (num_points + 1)  # приращение угла между точками ломаной
         vAB_3 = glm.vec3(r, 0.0, 0.0)
-        vOA_3 = -glm.rotateZ(vAB_3, glm.pi() / 2.0 - alpha / 2.0)
+        beta = (glm.pi() - alpha) * 0.5
+        vOA_3 = -glm.rotateZ(vAB_3, -beta)
         vOA_2 = glm.vec2(vOA_3.x, vOA_3.y)
 
-        points.append(0.0)  # A.x
-        points.append(0.0)  # A.y
+        points.append(glm.vec2(0.0, 0.0))  # точка A
 
         angle = 0.0
         for i in range(num_points):
@@ -360,17 +396,19 @@ class Arc(Polygon):
             v_2 = glm.vec2(v_3.x, v_3.y)
             x_v = v_2 - vOA_2
 
-            points.append(x_v.x)
-            points.append(x_v.y)
+            points.append(x_v)
 
-        points.append(1.0)  # B.x
-        points.append(0.0)  # B.y
+        points.append(glm.vec2(1.0, 0.0))  # точка B
 
         self.set_points(points)
 
     def draw_by_two_points(self, p1, p2, color, filled):
-        pass
-
+        v1 = glm.vec2(1.0, 0.0)
+        v2 = p2 - p1
+        length = glm.length(v2)
+        size = glm.vec2(length, length)
+        angle = angle_between_vectors_2d(v1, v2)
+        super().draw(p1, size, angle, color, filled)
 
 class Character:
     def __init__(self):
