@@ -7,4 +7,6 @@ __pycache__
 /*.bat
 /*.sh
 *.ini
+*.toml
+
 

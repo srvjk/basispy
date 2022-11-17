@@ -8,7 +8,7 @@ import glm
 import graphics_opengl as gogl
 import cells
 import logging
-import configparser
+import config_helper
 
 
 class WorldLogHandler(logging.Handler):
@@ -31,6 +31,7 @@ class WorldViewer(basis.Entity):
         super().__init__(system)
         self.config = None
         self.config_file_name = 'multiagentmind.ini'
+        self.toml = config_helper.TOMLHelper("config.toml")
         self.win_x = 10
         self.win_y = 10
         self.win_width = 1024
@@ -80,18 +81,21 @@ class WorldViewer(basis.Entity):
         self.system_logger = None          # системный логгер
 
     def read_config(self):
-        self.config = configparser.ConfigParser()
-        if not self.config.read(self.config_file_name):
+        config = self.system.get_entity_by_name("ConfigHelper")
+        if not config:
             return
 
-        try:
-            self.win_width = int(self.config['window']['width'])
-            self.win_height = int(self.config['window']['height'])
-            self.win_x = int(self.config['window']['x'])
-            self.win_y = int(self.config['window']['y'])
-            self.win_maximized = int(self.config['window']['maximized'])
-        except KeyError:
-            pass  # поскольку все поля имеют значения по умолчанию
+        section_name = basis.short_class_name(self)  # название раздела конфигурации для этого окна
+
+        net_viewer = config.data.get(section_name, None)
+        if net_viewer:
+            window = net_viewer.get('window', None)
+            if window:
+                self.win_width = window.get('width', self.win_width)
+                self.win_height = window.get('height', self.win_height)
+                self.win_x = window.get('x', self.win_x)
+                self.win_y = window.get('y', self.win_y)
+                self.win_maximized = window.get('maximized', self.win_maximized)
 
         self.check_config()
 
@@ -102,16 +106,31 @@ class WorldViewer(basis.Entity):
             self.win_height = 100
 
     def write_config(self):
-        self.config['window']['width'] = str(self.win_width)
-        self.config['window']['height'] = str(self.win_height)
-        self.config['window']['x'] = str(self.win_x)
-        self.config['window']['y'] = str(self.win_y)
-        self.config['window']['maximized'] = str(self.win_maximized)
-        try:
-            with open(self.config_file_name, mode='w+t') as fp:
-                self.config.write(fp)
-        except OSError:
+        import tomlkit
+
+        config = self.system.get_entity_by_name("ConfigHelper")
+        if not config:
             return
+
+        section_name = basis.short_class_name(self)  # название раздела конфигурации для этого окна
+
+        net_viewer = config.data.get(section_name, None)
+        if not net_viewer:
+            net_viewer = tomlkit.table()
+            config.data.add(section_name, net_viewer)
+
+            window = tomlkit.table()
+            net_viewer.add('window', window)
+
+        window = net_viewer.get('window', None)
+        if window is None:
+            return
+
+        window['width'] = self.win_width
+        window['height'] = self.win_height
+        window['x'] = self.win_x
+        window['y'] = self.win_y
+        window['maximized'] = self.win_maximized
 
     def on_window_resize(self):
         glfw.make_context_current(self.window)

@@ -78,7 +78,7 @@ class Neuron:
     def __init__(self):
         self.active = False
         self.position = Point(0.0, 0.0, 0.0)  # координаты нейрона в нейросети
-        self.size = Point(10.0, 10.0, 0.0)    # отображаемые размеры нейрона
+        self.size = Point(30.0, 30.0, 0.0)    # отображаемые размеры нейрона
 
     def do_activation(self, memory):
         """

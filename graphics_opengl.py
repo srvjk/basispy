@@ -1,9 +1,27 @@
 import OpenGL.GL as gl
 import glm
+import math
 from PIL import Image
 from numpy import asarray
 import freetype
 
+
+def angle_between_vectors_2d(vec1, vec2):
+    """
+    Вычисляет угол в радианах от вектора vec1 к вектору vec2 (векторы двухмерные).
+    :param vec1:
+    :param vec2:
+    :return:
+    """
+    vec1_norm = glm.normalize(vec1)
+    vec2_norm = glm.normalize(vec2)
+    ang = glm.acos(glm.dot(vec1_norm, vec2_norm))
+    crz = vec1_norm.x * vec2_norm.y - vec2_norm.x * vec1_norm.y
+    if crz < 0:
+        ang *= -1.0
+        #ang += glm.pi()
+
+    return ang
 
 class Shader:
     def __init__(self):
@@ -49,7 +67,12 @@ class Shader:
             gl.glDeleteShader(geometry_shader)
 
     def use(self):
-        gl.glUseProgram(self.shader_program)
+        try:
+            gl.glUseProgram(self.shader_program)
+        except gl.GLError as err:
+            print("GLError {} in Shader.use(), shader program id {}".format(err.err, self.shader_program))
+            if err.err != 1282:  # похоже, ошибку 1282 можно игнорировать без видимых последствий
+                raise
 
     def set_float(self, name, value, use_shader=False):
         if use_shader:
@@ -216,14 +239,58 @@ class SpriteRenderer:
         model = glm.scale(model, glm.vec3(size, 1.0))
 
         self.shader.use()
-        self.shader.set_matrix4("model", model)
-        self.shader.set_vector3f("spriteColor", color)
+        try:
+            self.shader.set_matrix4("model", model)
+            self.shader.set_vector3f("spriteColor", color)
+        except gl.GLError as err:
+            print("GLError {} occured, ignored".format(err.err))
+            if err.err != 1282:  # похоже, ошибку 1282 можно игнорировать без видимых последствий
+                raise
 
         gl.glActiveTexture(gl.GL_TEXTURE0)
         texture.bind()
 
         gl.glBindVertexArray(self.vao)
         gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
+        gl.glBindVertexArray(0)
+
+
+class Line:
+    def __init__(self, shader):
+        self.vao = None
+        self.shader = shader
+        self.vertex_count = 2
+        self.vertices = list()
+        self.vertices.append(0.0)
+        self.vertices.append(0.0)
+        self.vertices.append(1.0)
+        self.vertices.append(0.0)
+
+        self.vao = gl.glGenVertexArrays(1)
+        vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, len(self.vertices) * 4, (gl.GLfloat * len(self.vertices))(*self.vertices),
+                        gl.GL_STATIC_DRAW)
+        gl.glBindVertexArray(self.vao)
+
+        gl.glVertexAttribPointer(0, 2, gl.GL_FLOAT, gl.GL_FALSE, 8, None)
+        gl.glEnableVertexAttribArray(0)
+
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+
+    def draw(self, position, size, rotate, color):
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(position, 0.0))
+        model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        model = glm.scale(model, glm.vec3(size, 1.0))
+
+        self.shader.use()
+        self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("polygonColor", color)
+
+        gl.glBindVertexArray(self.vao)
+        gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
         gl.glBindVertexArray(0)
 
 
@@ -256,10 +323,46 @@ class Polygon:
         gl.glBindVertexArray(0)
 
     def draw(self, position, size, rotate, color, filled):
+        """
+        Нарисовать ломаную относительно точки position.
+        :param position:
+        :param size:
+        :param rotate:
+        :param color:
+        :param filled:
+        :return:
+        """
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(position, 0.0))
+        model = glm.rotate(model, rotate, glm.vec3(0.0, 0.0, 1.0))
+        model = glm.scale(model, glm.vec3(size, 1.0))
+
+        self.shader.use()
+        self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("polygonColor", color)
+
+        gl.glBindVertexArray(self.vao)
+        if filled:
+            gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, self.vertex_count)
+        else:
+            gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
+        gl.glBindVertexArray(0)
+
+    def draw_centered(self, position, size, rotate, color, filled):
+        """
+        Нарисовать ломаную относительно ее геометрического центра.
+        :param position:
+        :param size:
+        :param rotate:
+        :param color:
+        :param filled:
+        :return:
+        """
         model = glm.mat4(1.0)
         model = glm.translate(model, glm.vec3(position, 0.0))
         model = glm.translate(model, glm.vec3(0.5 * size[0], 0.5 * size[1], 0.0))
-        model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        #model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        model = glm.rotate(model, rotate, glm.vec3(0.0, 0.0, 1.0))
         model = glm.translate(model, glm.vec3(-0.5 * size[0], -0.5 * size[1], 0.0))
         model = glm.scale(model, glm.vec3(size, 1.0))
 
@@ -272,84 +375,174 @@ class Polygon:
             gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, self.vertex_count)
         else:
             gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
-        #gl.glDrawArrays(gl.GL_POINTS, 0, self.vertex_count)
         gl.glBindVertexArray(0)
+
+
+class Arc(Polygon):
+    def __init__(self, shader, alpha, num_points):
+        """
+        Инициализация дуги
+        :param shader:
+        :param alpha: радиус кривизны дуги в радианах
+        :param num_points: кол-во промежуточных точек дуги (не считая начальной и конечной)
+        """
+        super().__init__(shader)
+        points = list()
+
+        d = 1.0
+        r = (0.5 * d) / glm.sin(0.5 * alpha)  # радиус дуги
+        d_angle = alpha / (num_points + 1)  # приращение угла между точками ломаной
+        vAB_3 = glm.vec3(r, 0.0, 0.0)
+        beta = (glm.pi() - alpha) * 0.5
+        vOA_3 = -glm.rotateZ(vAB_3, -beta)
+        vOA_2 = glm.vec2(vOA_3.x, vOA_3.y)
+
+        points.append(glm.vec2(0.0, 0.0))  # точка A
+
+        angle = 0.0
+        for i in range(num_points):
+            angle += d_angle
+            v_3 = glm.rotateZ(vOA_3, -angle)  # вращаем вокруг центра дуги по часовой стрелке
+            v_2 = glm.vec2(v_3.x, v_3.y)
+            x_v = v_2 - vOA_2
+
+            points.append(x_v)
+
+        points.append(glm.vec2(1.0, 0.0))  # точка B
+
+        self.set_points(points)
+
+    def draw_by_two_points(self, p1, p2, color, filled):
+        v1 = glm.vec2(1.0, 0.0)
+        v2 = p2 - p1
+        length = glm.length(v2)
+        size = glm.vec2(length, length)
+        angle = angle_between_vectors_2d(v1, v2)
+        super().draw(p1, size, angle, color, filled)
+
+class Character:
+    def __init__(self):
+        self.texture = None
+        self.size = glm.vec2(1.0, 1.0)
+        self.bearing = glm.vec2(0.0, 0.0)
+        self.advance = 0
 
 
 class TextRenderer:
     def __init__(self, shader):
         self.vao = None
         self.shader = shader
-        self.init_render_data()
-        self.textures = dict()
-        self.char_width = 1
-        self.char_height = 1
+        self.characters = dict()
 
-    def init_render_data(self):
-        vertices = [
-            # 1st triangle
-            # pos     tex
-            0.0, 1.0, 0.0, 1.0,
-            1.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 0.0,
-            # 2nd triangle
-            # pos     tex
-            0.0, 1.0, 0.0, 1.0,
-            1.0, 1.0, 1.0, 1.0,
-            1.0, 0.0, 1.0, 0.0
-        ]
-
-        self.vao = gl.glGenVertexArrays(1)
-        vbo = gl.glGenBuffers(1)
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-        gl.glBufferData(gl.GL_ARRAY_BUFFER, len(vertices) * 4, (gl.GLfloat * len(vertices))(*vertices),
-                        gl.GL_STATIC_DRAW)
-        gl.glBindVertexArray(self.vao)
-
-        gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None)
-        gl.glEnableVertexAttribArray(0)
-
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        gl.glBindVertexArray(0)
-
-    def make_face(self, face_file_path, char_width, char_height):
-        self.char_width = char_width
-        self.char_height = char_height
+    def make_face(self, face_file_path):
         face = freetype.Face(face_file_path)
-        face.set_char_size(self.char_width * self.char_height)
+        face.set_pixel_sizes(0, 48)
 
-        for ch in range(0, 128):
-            face.load_char(ch)
+        gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+
+        for i in range(0, 128):
+            ch = chr(i)
+            face.load_char(ch, flags=freetype.FT_LOAD_RENDER)
             bitmap = face.glyph.bitmap
 
-            texture = Texture()
-            texture.internal_format = gl.GL_RGBA
-            texture.image_format = gl.GL_RGBA
-            texture.generate(self.char_width, self.char_height, bitmap.buffer)
-            self.textures[ch] = texture
+            ch_descr = Character()
+            self.characters[ch] = ch_descr
 
-    def draw_text(self, text, x, y, color):
-        model = glm.mat4(1.0)
+            ch_descr.size = glm.vec2(face.glyph.bitmap.width, face.glyph.bitmap.rows)
+            ch_descr.bearing = glm.vec2(face.glyph.bitmap_left, face.glyph.bitmap_top)
+            ch_descr.advance = face.glyph.advance.x
+
+            ch_descr.texture = Texture()
+            ch_descr.texture.internal_format = gl.GL_RED
+            ch_descr.texture.image_format = gl.GL_RED
+            ch_descr.texture.generate(bitmap.width, bitmap.rows, bitmap.buffer)
+
+    def draw_text(self, text, x, y, scale, color):
         self.shader.use()
-        self.shader.set_vector3f("spriteColor", color)
-
-        x0 = x
-        y0 = y
+        self.shader.set_vector3f("textColor", color)
 
         for ch in text:
-            model = glm.translate(model, glm.vec3(x0, y0, 0.0))
-            model = glm.scale(model, glm.vec3(self.char_width, self.char_height, 1.0))
-            self.shader.set_matrix4("model", model)
+            ch_descr = self.characters[ch]
+
+            w = ch_descr.size.x * scale
+            h = ch_descr.size.y * scale
+            x_ch = x + ch_descr.bearing.x * scale
+            y_ch = y - (ch_descr.size.y - ch_descr.bearing.y) * scale
+
+            vertices = [
+                # 1st triangle
+                # pos               tex
+                x_ch,     y_ch,     0.0, 1.0,
+                x_ch + w, y_ch + h, 1.0, 0.0,
+                x_ch,     y_ch + h, 0.0, 0.0,
+                # 2nd triangle
+                # pos               tex
+                x_ch, y_ch,         0.0, 1.0,
+                x_ch + w, y_ch,     1.0, 1.0,
+                x_ch + w, y_ch + h, 1.0, 0.0
+            ]
+
+            self.vao = gl.glGenVertexArrays(1)
+            vbo = gl.glGenBuffers(1)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(vertices) * 4, (gl.GLfloat * len(vertices))(*vertices),
+                            gl.GL_STATIC_DRAW)
+            gl.glBindVertexArray(self.vao)
+
+            gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None)
+            gl.glEnableVertexAttribArray(0)
+
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+            gl.glBindVertexArray(0)
 
             gl.glActiveTexture(gl.GL_TEXTURE0)
-            texture = self.textures[ch]
-            texture.bind()
+            ch_descr.texture.bind()
 
             gl.glBindVertexArray(self.vao)
             gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
             gl.glBindVertexArray(0)
 
-            x0 += self.char_width
+            #x_ch += self.char_width
+            x += (ch_descr.advance >> 6) * scale
 
+def test():
+    """
+    Юнит-тесты.
+    :return:
+    """
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(1.0, 0.0))
+    if not math.isclose(ang, 0.0):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(0.0, 1.0))
+    if not math.isclose(ang, glm.pi() / 2.0):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(0.0, 1.0), glm.vec2(1.0, 0.0))
+    if not math.isclose(ang, -glm.pi() / 2.0):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(-1.0, 0.0))
+    if not math.isclose(ang, glm.pi()):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(-1.0, 0.0), glm.vec2(1.0, 0.0))
+    if not math.isclose(ang, glm.pi()):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(1.0, 1.0))
+    if not math.isclose(ang, glm.pi() / 4.0, rel_tol=1e-6):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(-1.0, 1.0))
+    if not math.isclose(ang, (3.0 * glm.pi()) / 4.0, rel_tol=1e-6):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(-1.0, -1.0))
+    if not math.isclose(ang, -(3.0 * glm.pi()) / 4.0, rel_tol=1e-6):
+        return False
+    ang = angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(1.0, -1.0))
+    if not math.isclose(ang, -glm.pi() / 4.0, rel_tol=1e-6):
+        return False
 
-resource_manager = ResourceManager()
+    return True
+
+if __name__ == "__main__":
+    res = test()
+    if res:
+        print("unit tests passed successfully for module 'graphics_opengl'")
+    else:
+        print("unit tests FAILED for module 'graphics_opengl'")

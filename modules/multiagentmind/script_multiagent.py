@@ -3,11 +3,15 @@ import basis_ui
 import cells
 import world_viewer
 import net_viewer
+import config_helper
 
 
 def main():
     # создаем объект Системы
     system = basis.System()
+
+    conf_hlpr = system.add_new(config_helper.TOMLHelper, "ConfigHelper")
+    conf_hlpr.load("config.toml")
 
     gui = system.add_new(basis_ui.GuiHelper, "GuiHelper")
     if gui:
@@ -32,6 +36,7 @@ def main():
     # запускаем систему
     system.operate()
 
+    conf_hlpr.save()
 
 if __name__ == "__main__":
     main()
