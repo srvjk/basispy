@@ -447,34 +447,6 @@ class Agent(basis.Entity):
         self.do_step()
 
 
-def angle(vector1, vector2):
-    """
-    Вычислить ориентированный угол (в радианах) между двумя векторами.
-    Положительное направление вращения - против часовой стрелки от vec1 к vec2.
-    """
-    vec1 = glm.vec2(vector1)
-    vec2 = glm.vec2(vector2)
-
-    sign = 1.0
-    len_1_len_2 = glm.length(vec1) * glm.length(vec2)
-    dot = glm.dot(vec1, vec2)
-
-    epsilon = 1e-6
-    if abs(dot) < epsilon:
-        pseudo_dot = vec1.x * vec2.y - vec2.x * vec1.y
-        sin_alpha = pseudo_dot / len_1_len_2
-        if sin_alpha < 0:
-            sign = -1.0
-
-    ang = glm.acos(dot / len_1_len_2)
-    double_pi = glm.pi() * 2.0
-    n = glm.floor(ang / double_pi)
-    if n > 0:
-        ang -= n * double_pi
-
-    return sign * ang
-
-
 class BoardCell:
     def __init__(self):
         self.objects = []
@@ -541,72 +513,8 @@ class Board(basis.Entity):
                 return True
         return False
 
-    def draw(self, renderer, resource_manager, pos, size):
-        x0 = pos[0]
-        y0 = pos[1]
-        width = size[0]
-        height = size[1]
-        cell_width = width / self.size
-        cell_height = height / self.size
-
-        polygon = gogl.Polygon(resource_manager.get_shader("polygon"))
-        polygon.set_points([
-            glm.vec2(0.0, 0.0),
-            glm.vec2(1.0, 0.0),
-            glm.vec2(1.0, 1.0),
-            glm.vec2(0.0, 1.0),
-            glm.vec2(0.0, 0.0)
-        ])
-        polygon.draw_centered(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1), True)
-
-        for obstacle in self.obstacles:
-            if isinstance(obstacle, Obstacle):
-                try:
-                    renderer.draw_sprite(resource_manager.get_texture("obstacle"),
-                                         glm.vec2(x0 + obstacle.position.x * cell_width,
-                                                  y0 + obstacle.position.y * cell_height),
-                                         glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
-                except AttributeError:
-                    pass
-
-        for agent in self.agents:
-            if isinstance(agent, Agent):
-                try:
-                    ang = angle(glm.vec2(1, 0), agent.orientation)
-                    renderer.draw_sprite(resource_manager.get_texture("agent"),
-                                         glm.vec2(x0 + agent.position.x * cell_width,
-                                                  y0 + agent.position.y * cell_height),
-                                         glm.vec2(cell_width, cell_height), glm.degrees(ang), glm.vec3(1.0))
-                except AttributeError:
-                    pass
-
-        # после всей отрисовки создаём вспомогательное сжатое представление доски:
-        #pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
-
-        for agent in self.agents:
-            if isinstance(agent, Agent):
-                agent_center = glm.vec2(x0 + agent.position.x * cell_width + 0.5 * cell_width,
-                                        y0 + agent.position.y * cell_height + 0.5 * cell_height)
-                polygon = gogl.Polygon(resource_manager.get_shader("polygon"))
-                polygon.set_points([
-                    glm.vec2(0.0, 0.0),
-                    agent.orientation
-                ])
-                polygon.draw_centered(
-                    agent_center, glm.vec2(cell_width, cell_width), 0.0, glm.vec3(1.0, 1.0, 0.5), False
-                )
-                # polygon.set_points([
-                #     glm.vec2(0.0, 0.0),
-                #     glm.vec2(1.0, 1.0)
-                # ])
-                # polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.5, 0.5, 0.5), False)
-
 
 def unit_test():
-    a1 = angle(glm.vec2(1.0, 0.0), glm.vec2(0.0, 1.0))
-    a2 = angle(glm.vec2(1.0, 0.0), glm.vec2(-1.0, 0.0))
-    a3 = angle(glm.vec2(1.0, 0.0), glm.vec2(0.0, -1.0))
-
     return True
 
 

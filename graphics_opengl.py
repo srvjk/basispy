@@ -424,6 +424,7 @@ class Arc(Polygon):
         angle = angle_between_vectors_2d(v1, v2)
         super().draw(p1, size, angle, color, filled)
 
+
 class Character:
     def __init__(self):
         self.texture = None
@@ -435,8 +436,19 @@ class Character:
 class TextRenderer:
     def __init__(self, shader):
         self.vao = None
+        self.vbo = None
         self.shader = shader
         self.characters = dict()
+
+        self.vao = gl.glGenVertexArrays(1)
+        self.vbo = gl.glGenBuffers(1)
+        gl.glBindVertexArray(self.vao)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, 4 * 6 * 4, None, gl.GL_DYNAMIC_DRAW)
+        gl.glEnableVertexAttribArray(0)
+        gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
 
     def make_face(self, face_file_path):
         face = freetype.Face(face_file_path)
@@ -465,6 +477,9 @@ class TextRenderer:
         self.shader.use()
         self.shader.set_vector3f("textColor", color)
 
+        gl.glActiveTexture(gl.GL_TEXTURE0)
+        gl.glBindVertexArray(self.vao)
+
         for ch in text:
             ch_descr = self.characters[ch]
 
@@ -486,28 +501,22 @@ class TextRenderer:
                 x_ch + w, y_ch + h, 1.0, 0.0
             ]
 
-            self.vao = gl.glGenVertexArrays(1)
-            vbo = gl.glGenBuffers(1)
-            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(vertices) * 4, (gl.GLfloat * len(vertices))(*vertices),
-                            gl.GL_STATIC_DRAW)
-            gl.glBindVertexArray(self.vao)
+            ch_descr.texture.bind()
 
-            gl.glVertexAttribPointer(0, 4, gl.GL_FLOAT, gl.GL_FALSE, 16, None)
-            gl.glEnableVertexAttribArray(0)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
+            gl.glBufferSubData(gl.GL_ARRAY_BUFFER, 0, len(vertices) * 4, (gl.GLfloat * len(vertices))(*vertices))
 
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
             gl.glBindVertexArray(0)
-
-            gl.glActiveTexture(gl.GL_TEXTURE0)
-            ch_descr.texture.bind()
 
             gl.glBindVertexArray(self.vao)
             gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
             gl.glBindVertexArray(0)
 
-            #x_ch += self.char_width
             x += (ch_descr.advance >> 6) * scale
+
+        gl.glBindVertexArray(0)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
 def test():
     """

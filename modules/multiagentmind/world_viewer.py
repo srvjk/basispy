@@ -71,6 +71,15 @@ class WorldViewer(basis.Entity):
         self.resource_manager.load_texture("agent.png", True, "agent")
         self.resource_manager.load_texture("obstacle.png", True, "obstacle")
 
+        self.board_polygon = gogl.Polygon(self.resource_manager.get_shader("polygon"))
+        self.board_polygon.set_points([
+            glm.vec2(0.0, 0.0),
+            glm.vec2(1.0, 0.0),
+            glm.vec2(1.0, 1.0),
+            glm.vec2(0.0, 1.0),
+            glm.vec2(0.0, 0.0)
+        ])
+
         self.agent = None
         self.agent_id = None
 
@@ -367,6 +376,58 @@ class WorldViewer(basis.Entity):
     def window_maximize_callback(self, window, maximized):
         self.win_maximized = maximized
 
+    def draw_board(self, pos, size):
+        x0 = pos[0]
+        y0 = pos[1]
+        width = size[0]
+        height = size[1]
+        cell_width = width / self.board.size
+        cell_height = height / self.board.size
+
+        self.board_polygon.draw_centered(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.1, 0.1, 0.1), True)
+
+        for obstacle in self.board.obstacles:
+            if isinstance(obstacle, cells.Obstacle):
+                try:
+                    self.renderer.draw_sprite(self.resource_manager.get_texture("obstacle"),
+                                         glm.vec2(x0 + obstacle.position.x * cell_width,
+                                                  y0 + obstacle.position.y * cell_height),
+                                         glm.vec2(cell_width, cell_height), 0.0, glm.vec3(1.0))
+                except AttributeError:
+                    pass
+
+        for agent in self.board.agents:
+            if isinstance(agent, cells.Agent):
+                try:
+                    ang = gogl.angle_between_vectors_2d(glm.vec2(1, 0), glm.vec2(agent.orientation))
+                    self.renderer.draw_sprite(self.resource_manager.get_texture("agent"),
+                                         glm.vec2(x0 + agent.position.x * cell_width,
+                                                  y0 + agent.position.y * cell_height),
+                                         glm.vec2(cell_width, cell_height), glm.degrees(ang), glm.vec3(1.0))
+                except AttributeError:
+                    pass
+
+        # после всей отрисовки создаём вспомогательное сжатое представление доски:
+        #pygame.transform.scale(self.visual_field, (self.size, self.size), self.compressed_visual_field)
+
+        for agent in self.board.agents:
+            if isinstance(agent, cells.Agent):
+                agent_center = glm.vec2(x0 + agent.position.x * cell_width + 0.5 * cell_width,
+                                        y0 + agent.position.y * cell_height + 0.5 * cell_height)
+                polygon = gogl.Polygon(self.resource_manager.get_shader("polygon"))
+                polygon.set_points([
+                    glm.vec2(0.0, 0.0),
+                    agent.orientation
+                ])
+                polygon.draw_centered(
+                    agent_center, glm.vec2(cell_width, cell_width), 0.0, glm.vec3(1.0, 1.0, 0.5), False
+                )
+                # polygon.set_points([
+                #     glm.vec2(0.0, 0.0),
+                #     glm.vec2(1.0, 1.0)
+                # ])
+                # polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.5, 0.5, 0.5), False)
+
     def step(self):
         glfw.make_context_current(self.window)
 
@@ -385,19 +446,17 @@ class WorldViewer(basis.Entity):
 
         imgui.new_frame()
 
-        # self.draw_info_window()
-        # self.draw_entities_window()
-        # self.draw_neuron_window()
-        # self.draw_control_window()
-        # self.draw_log_window()
+        self.draw_info_window()
+        self.draw_entities_window()
+        self.draw_neuron_window()
+        self.draw_control_window()
+        self.draw_log_window()
 
         if self.board:
             board_image_size = min(self.win_width, self.win_height)
             board_pos_x = (self.win_width - board_image_size) / 2.0
             board_pos_y = (self.win_height - board_image_size) / 2.0
-            self.board.draw(self.renderer,
-                            self.resource_manager,
-                            (board_pos_x, board_pos_y),
+            self.draw_board((board_pos_x, board_pos_y),
                             (board_image_size, board_image_size)
                             )
 
