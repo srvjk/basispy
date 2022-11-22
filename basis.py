@@ -7,6 +7,7 @@ import time
 from enum import Enum
 import inspect
 import logging
+import gc
 
 
 def first_of(lst):
@@ -338,7 +339,7 @@ class UnsupportedTimingModeException(BasisException):
 class SystemStatistics:
     def __init__(self):
         self.counter_by_type = dict()  # для подсчета количества сущностей каждого типа
-
+        self.total_obj_count = 0       # общее количество объектов в приложении (вывод функции dir())
 
 class System(Entity):
     def __init__(self):
@@ -354,6 +355,8 @@ class System(Entity):
         self._last_time_stamp = 0              # последняя сделанная временная отметка, нс
         self._fps_probe_interval = int(1e9)    # интервал между замерами FPS, нс
         self._last_fps_time_stamp = 0          # последняя отметка времени для измерения FPS, нс
+        self._last_stats_time_stamp = 0        # последняя отметка времени для сбора статистики, нс
+        self._stats_probe_interval = int(1e9)  # интервал сбора статистики, нс
         self._model_time_ns = 0                # модельное время (от первого System.step()), нс
         self.pause = True                      # флаг режима "Пауза/пошаговый"
         self.step_time_delta_ns = 1000000      # длительность 1 шага модельного времени, нс
@@ -489,13 +492,23 @@ class System(Entity):
             self._last_step_counter = self._step_counter
             self._last_fps_time_stamp = time_now
 
+        # измерения производительности
+        time_now = time.monotonic_ns()
+        t_diff = time_now - self._last_stats_time_stamp
+        if t_diff > self._stats_probe_interval:
+            counts = gc.get_count()
+            self.statistics.total_obj_count = len(gc.garbage)
+            self._last_stats_time_stamp = time_now
+
     def operate(self):
         self._step_counter = 0
         self._fps = 0.0
         self._last_step_counter = 0
         self._last_time_stamp = 0
         self._fps_probe_interval = int(1e9)
+        self._stats_probe_interval = int(1e9)
         self._last_fps_time_stamp = 0
+        self._last_stats_time_stamp = 0
         self._model_time_ns = 0
         self.should_stop = False
 

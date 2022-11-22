@@ -233,7 +233,9 @@ class WorldViewer(basis.Entity):
         imgui.end()
 
     def draw_entities_window(self):
-        imgui.begin("Entities")
+        imgui.begin("Objects and Entities")
+
+        imgui.text("Objects total: {}".format(self.system.statistics.total_obj_count))
 
         imgui.text("Entities total: {}".format(len(self.system.entity_uuid_index)))
         imgui.new_line()
@@ -383,11 +385,11 @@ class WorldViewer(basis.Entity):
 
         imgui.new_frame()
 
-        self.draw_info_window()
-        self.draw_entities_window()
-        self.draw_neuron_window()
-        self.draw_control_window()
-        self.draw_log_window()
+        # self.draw_info_window()
+        # self.draw_entities_window()
+        # self.draw_neuron_window()
+        # self.draw_control_window()
+        # self.draw_log_window()
 
         if self.board:
             board_image_size = min(self.win_width, self.win_height)
@@ -401,7 +403,6 @@ class WorldViewer(basis.Entity):
 
         info_str = "Step {}".format(self.system.get_global_step_counter())
         self.text_renderer.draw_text(info_str, 20, 120, 0.5, glm.vec3(1.0, 0.0, 1.0))
-        # self.draw_board()
 
         imgui.render()
         self.render_engine.render(imgui.get_draw_data())

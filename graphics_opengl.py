@@ -71,7 +71,9 @@ class Shader:
             gl.glUseProgram(self.shader_program)
         except gl.GLError as err:
             print("GLError {} in Shader.use(), shader program id {}".format(err.err, self.shader_program))
-            if err.err != 1282:  # похоже, ошибку 1282 можно игнорировать без видимых последствий
+            if err.err == 1282:  # похоже, ошибку 1282 можно игнорировать без видимых последствий
+                pass
+            else:
                 raise
 
     def set_float(self, name, value, use_shader=False):
@@ -244,7 +246,9 @@ class SpriteRenderer:
             self.shader.set_vector3f("spriteColor", color)
         except gl.GLError as err:
             print("GLError {} occured, ignored".format(err.err))
-            if err.err != 1282:  # похоже, ошибку 1282 можно игнорировать без видимых последствий
+            if err.err == 1282:  # похоже, ошибку 1282 можно игнорировать без видимых последствий
+                pass
+            else:
                 raise
 
         gl.glActiveTexture(gl.GL_TEXTURE0)
