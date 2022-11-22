@@ -29,9 +29,9 @@ def main():
     if w_view:
         system.activate(w_view)
 
-    # n_view = system.add_new(net_viewer.NetViewer)
-    # if n_view:
-    #     system.activate(n_view)
+    n_view = system.add_new(net_viewer.NetViewer)
+    if n_view:
+        system.activate(n_view)
 
     # запускаем систему
     system.operate()

@@ -80,6 +80,9 @@ class WorldViewer(basis.Entity):
             glm.vec2(0.0, 0.0)
         ])
 
+        self.agent_dir_pointer = gogl.Polygon(self.resource_manager.get_shader("polygon"))
+        self.agent_dir_pointer.set_points([glm.vec2(0.0, 0.0), glm.vec2(1.0, 0.0)])
+
         self.agent = None
         self.agent_id = None
 
@@ -414,13 +417,9 @@ class WorldViewer(basis.Entity):
             if isinstance(agent, cells.Agent):
                 agent_center = glm.vec2(x0 + agent.position.x * cell_width + 0.5 * cell_width,
                                         y0 + agent.position.y * cell_height + 0.5 * cell_height)
-                polygon = gogl.Polygon(self.resource_manager.get_shader("polygon"))
-                polygon.set_points([
-                    glm.vec2(0.0, 0.0),
-                    agent.orientation
-                ])
-                polygon.draw_centered(
-                    agent_center, glm.vec2(cell_width, cell_width), 0.0, glm.vec3(1.0, 1.0, 0.5), False
+                angle = gogl.angle_between_vectors_2d(glm.vec2(1.0, 0.0), glm.vec2(agent.orientation))
+                self.agent_dir_pointer.draw(
+                    agent_center, glm.vec2(cell_width, cell_width), angle, glm.vec3(1.0, 1.0, 0.5), False
                 )
                 # polygon.set_points([
                 #     glm.vec2(0.0, 0.0),

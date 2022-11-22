@@ -50,6 +50,8 @@ class NetViewer(basis.Entity):
         self.resource_manager.load_texture("background.png", False, "background")
         self.resource_manager.load_texture("neuron.png", True, "neuron")
 
+        self.lnk_arc = gogl.Arc(self.resource_manager.get_shader("polygon"), 1.0, 10)  # дуга для рисования связи
+
         self.agent = None
         self.agent_id = None
 
@@ -189,10 +191,6 @@ class NetViewer(basis.Entity):
             self.text_renderer.draw_text(info_str, x0 + neuron.position.x, y0 + neuron.position.y, 0.3,
                                          glm.vec3(1.0, 1.0, 1.0))
 
-        line = gogl.Line(self.resource_manager.get_shader("polygon"))
-
-        arc = gogl.Arc(self.resource_manager.get_shader("polygon"), 1.0, 10)
-
         for key, lnk in memory.links.items():
             src_ent = memory.get_entity_by_id(lnk.src_id)
             if not src_ent:
@@ -210,12 +208,7 @@ class NetViewer(basis.Entity):
             )
 
             lnk_color = glm.vec3(1.0, 1.0, 1.0)
-            #lnk_len = glm.distance(pt_src, pt_dst)
-            lnk_vec = pt_dst - pt_src
-            lnk_len = glm.length(lnk_vec)
-            ang = gogl.angle_between_vectors_2d(glm.vec2(1.0, 0.0), lnk_vec)
-            #line.draw(pt_src, (lnk_len, 0.0), glm.degrees(ang), lnk_color)
-            arc.draw_by_two_points(pt_src, pt_dst, lnk_color, False)
+            self.lnk_arc.draw_by_two_points(pt_src, pt_dst, lnk_color, False)
 
     def step(self):
         if not self.agent:
