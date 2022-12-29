@@ -261,11 +261,13 @@ class WorldViewer(basis.Entity):
 
         imgui.text("Named entities:")
 
-        imgui.columns(3)
+        imgui.columns(4)
         imgui.separator()
         imgui.text("ID")
         imgui.next_column()
-        imgui.text("Name")
+        imgui.text("Short name")
+        imgui.next_column()
+        imgui.text("Full name")
         imgui.next_column()
         imgui.text("Step")
         imgui.next_column()
@@ -278,6 +280,11 @@ class WorldViewer(basis.Entity):
             imgui.next_column()
             name = v.name if v.name else "-"
             imgui.text(name)
+            imgui.next_column()
+            full_name = v.full_name()
+            if not full_name:
+                full_name = "-"
+            imgui.text(full_name)
             imgui.next_column()
             imgui.text(str(v.get_local_step_counter()))
             imgui.next_column()
@@ -300,7 +307,7 @@ class WorldViewer(basis.Entity):
         imgui.same_line()
         for col in range(n):
             neuron = neurons[col].get_facet(cells.Neuron)
-            color = color_neuron_active if neuron.active else color_neuron_inactive
+            color = color_neuron_active if neuron.is_active() else color_neuron_inactive
             imgui.push_style_color(imgui.COLOR_TEXT, *color)
             imgui.text(str(col))
             imgui.pop_style_color(1)
@@ -427,7 +434,7 @@ class WorldViewer(basis.Entity):
                 # ])
                 # polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.5, 0.5, 0.5), False)
 
-    def step(self):
+    def draw(self):
         glfw.make_context_current(self.window)
 
         glfw.poll_events()
@@ -465,6 +472,9 @@ class WorldViewer(basis.Entity):
         imgui.render()
         self.render_engine.render(imgui.get_draw_data())
         glfw.swap_buffers(self.window)
+
+    def step(self):
+        self.draw()
 
     def init_glfw(self):
         # Initialize the GLFW library

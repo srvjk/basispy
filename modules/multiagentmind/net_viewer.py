@@ -48,7 +48,8 @@ class NetViewer(basis.Entity):
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         self.resource_manager.load_texture("background.png", False, "background")
-        self.resource_manager.load_texture("neuron.png", True, "neuron")
+        self.resource_manager.load_texture("neuron_inactive.png", True, "neuron_inactive")
+        self.resource_manager.load_texture("neuron_active.png", True, "neuron_active")
 
         self.lnk_arc = gogl.Arc(self.resource_manager.get_shader("polygon"), 1.0, 10)  # дуга для рисования связи
 
@@ -183,11 +184,16 @@ class NetViewer(basis.Entity):
             if not neuron:
                 continue
 
-            self.renderer.draw_sprite(self.resource_manager.get_texture("neuron"),
+            neuron_sprite = "neuron_inactive"
+            if neuron.is_active():
+                neuron_sprite = "neuron_active"
+
+            self.renderer.draw_sprite(self.resource_manager.get_texture(neuron_sprite),
                                  glm.vec2(x0 + neuron.position.x, y0 + neuron.position.y),
                                  glm.vec2(neuron.size.x, neuron.size.y), 0.0, glm.vec3(1.0))
 
-            info_str = "{} - {}".format(str(ent.uuid.fields[0]), basis.qual_class_name(ent))
+            #info_str = "{} - {}".format(str(ent.uuid.fields[0]), basis.qual_class_name(ent))
+            info_str = "{} - {}".format(str(ent.uuid.fields[0]), ent.full_name())
             self.text_renderer.draw_text(info_str, x0 + neuron.position.x, y0 + neuron.position.y, 0.3,
                                          glm.vec3(1.0, 1.0, 1.0))
 
@@ -210,7 +216,7 @@ class NetViewer(basis.Entity):
             lnk_color = glm.vec3(1.0, 1.0, 1.0)
             self.lnk_arc.draw_by_two_points(pt_src, pt_dst, lnk_color, False)
 
-    def step(self):
+    def draw(self):
         if not self.agent:
             if self.agent_id:
                 self.agent = self.system.get_entity_by_id(self.agent_id)
@@ -230,9 +236,12 @@ class NetViewer(basis.Entity):
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
-        self.draw_memory(self.agent.memory, (0, 0), (self.win_width, self.win_height))
+        self.draw_memory(self.agent.memory, (self.win_width * 0.5, self.win_height * 0.5), 1.0)
 
         glfw.swap_buffers(self.window)
+
+    def step(self):
+        self.draw()
 
     def init_glfw(self):
         # Initialize the GLFW library

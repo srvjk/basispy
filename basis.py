@@ -38,7 +38,7 @@ class BasisException(Exception):
 class Entity:
     def __init__(self, system, name=""):
         self.uuid = uuid.uuid4()         # глобально уникальный, случайно генерируемый идентификатор сущности
-        self.name = name                 # имя сущности (не обязано быть уникальным)
+        self.name = name                 # имя сущности (д.б. локально-уникальным, т.е. в пределах сущности-контейнера)
         self.system = system             # ссылка на систему
         self.base = None                 # ссылка на базовую сущность (для граней) TODO не объединить ли с container ?
         self.container = None            # ссылка на контейнер (для вложенных сущностей)
@@ -62,38 +62,6 @@ class Entity:
 
         for ent in self.entities.copy():
             ent.abolish()
-
-    def clone(self):
-        """
-        Создать свою точную копию.
-        :return: сущность-копия
-        """
-        # создаём новую сущность того же типа, что и данная, и регистрируем её в системе
-        new_name = ""
-        if self.name:
-            new_name = self.name + '*'
-        new_entity = self.system.new(type(self), new_name)
-        # далее надо перебрать все элементы ДАННЫХ и скопировать их значения, кроме entities, active_entities и
-        # entity_name_index, для которых должна быть отдельная процедура
-        for k, v in inspect.getmembers(self):
-            if k.startswith('__'):  # пропускаем системные атрибуты
-                continue
-            if inspect.ismethod(v):
-                continue
-            if k in ('uuid', 'name'):
-                continue
-            if k in ('entities', 'active_entities', 'entity_name_index'):
-                continue
-            setattr(new_entity, k, v)
-
-        # теперь копируем вложенные сущности
-        for child in self.entities:
-            new_child = child.clone()
-            new_entity.add_entity(new_child)
-            if child in self.active_entities:
-                new_entity.activate(new_child)
-
-        return new_entity
 
     def abolish(self):
         """
@@ -158,9 +126,9 @@ class Entity:
     def add_new(self, class_name, entity_name=""):
         """
         Создать новую сущность и добавить её в список дочерних.
-        :param class_name:
-        :param entity_name:
-        :return:
+        :param class_name: имя класса создаваемой сущности
+        :param entity_name: собственное имя новой сущности, уникальное только в пределах данного контейнера
+        :return: созданная сущность
         """
         ent = self.system.new(class_name, entity_name)
         if not ent:
@@ -228,6 +196,12 @@ class Entity:
 
         return result
 
+    def siblings(self):
+        """ Получить все другие вложенные сущности того же контейнера, в котором содержится данная сущность """
+        if self.container:
+            for e in self.container.entities.copy():
+                if e.uuid != self.uuid:
+                    yield e
 
     def on_entity_renamed(self, entity, old_name, new_name) -> bool:
         if entity not in self.entities:
@@ -252,13 +226,22 @@ class Entity:
         for ent in self.entities:
             print(ent)
 
-    def activate(self, entity):
-        if not isinstance(entity, Entity):
-            return False
-        if entity in self.active_entities:
-            return True  # ok, already activated
-        self.active_entities.add(entity)
-        return True
+    def make_active(self):
+        """  Сделать активной данную сущность и активировать также все её контейнеры """
+        ent = self
+        cont = ent.container
+        while cont:
+            cont.active_entities.add(ent)
+            ent = cont
+            cont = ent.container
+
+    # def activate(self, entity):
+    #     if not isinstance(entity, Entity):
+    #         return False
+    #     if entity in self.active_entities:
+    #         return True  # ok, already activated
+    #     self.active_entities.add(entity)
+    #     return True
 
     def rename(self, new_name) -> bool:
         old_name = self.name
@@ -266,6 +249,22 @@ class Entity:
         result = self.system.on_entity_renamed(self, old_name, new_name)
 
         return result
+
+    def full_name(self):
+        """ Получить полное имя сущности, состоящее из её собственного имени и имён всех ее контейнеров """
+        res = ""
+        ent = self
+        while ent:
+            tmp_name = ent.name
+            if not tmp_name:
+                tmp_name = "?"
+            if res:
+                res = tmp_name + "." + res
+            else:
+                res = tmp_name
+            ent = ent.container
+
+        return res
 
     def has_one_of(self, condition):
         for ent in self.entities:
@@ -301,6 +300,8 @@ class Entity:
     def step(self):
         self._local_step_counter += 1
 
+        for entity in self.active_entities.copy():
+            entity.step()
 
 class OnOffTrigger(Entity):
     def __init__(self, system):
@@ -345,6 +346,7 @@ class System(Entity):
     def __init__(self):
         super().__init__(system=None)
         self.system = self
+        self.name = "System"
         self.entity_uuid_index = dict()        # индекс всех сущностей в системе с доступом по UUID
         self.entity_type_count = dict()
         self.recent_errors = deque(maxlen=10)
@@ -444,7 +446,7 @@ class System(Entity):
         self.statistics.counter_by_type[type_name] = cnt
 
     def step(self):
-        super().step()
+        #super().step()
 
         if self.do_single_step:
             pass

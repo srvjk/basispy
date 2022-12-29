@@ -15,7 +15,7 @@ def main():
 
     gui = system.add_new(basis_ui.GuiHelper, "GuiHelper")
     if gui:
-        system.activate(gui)
+        gui.make_active()
 
     board = system.add_new(cells.Board, "Board")
     board.create_obstacles(density=0.1)
@@ -23,15 +23,15 @@ def main():
     agent = board.add_new(cells.Agent, "Agent")
     agent.create()
     agent.set_board(board)
-    system.activate(agent)
+    agent.make_active()
 
-    w_view = system.add_new(world_viewer.WorldViewer)
+    w_view = system.add_new(world_viewer.WorldViewer, "WorldViewer")
     if w_view:
-        system.activate(w_view)
+        w_view.make_active()
 
-    n_view = system.add_new(net_viewer.NetViewer)
+    n_view = system.add_new(net_viewer.NetViewer, "NetViewer")
     if n_view:
-        system.activate(n_view)
+        n_view.make_active()
 
     # запускаем систему
     system.operate()
