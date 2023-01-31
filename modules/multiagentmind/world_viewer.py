@@ -261,7 +261,7 @@ class WorldViewer(basis.Entity):
 
         imgui.text("Named entities:")
 
-        imgui.columns(4)
+        imgui.columns(5)
         imgui.separator()
         imgui.text("ID")
         imgui.next_column()
@@ -270,6 +270,8 @@ class WorldViewer(basis.Entity):
         imgui.text("Full name")
         imgui.next_column()
         imgui.text("Step")
+        imgui.next_column()
+        imgui.text("Speed")
         imgui.next_column()
         imgui.separator()
 
@@ -287,6 +289,8 @@ class WorldViewer(basis.Entity):
             imgui.text(full_name)
             imgui.next_column()
             imgui.text(str(v.get_local_step_counter()))
+            imgui.next_column()
+            imgui.text(str(v.normalized_speed_factor()))
             imgui.next_column()
 
         imgui.end()

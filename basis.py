@@ -46,6 +46,9 @@ class Entity:
         self.active_entities = set()     # перечень активных сущностей (т.е. таких, для которых вызывается step())
         self.entity_name_index = dict()  # индекс вложенных сущностей с доступом по имени
         self.may_be_paused = True        # можно ли ставить эту сущность на паузу
+        self.activity_counter = 0.0      # счетчик активности (если больше 1, сущность может быть активирована)
+        self._speed_factor = 1           # коэффициент скорости (от 1 до 99)
+        self._normalized_speed_factor = 1.0  # нормализованный коэффициент скорости (от 0 до 1)
         self._local_step_counter = 0     # локальный счетчик шагов данной сущности
 
     def create(self, source=None):
@@ -297,11 +300,39 @@ class Entity:
 
         return False
 
-    def step(self):
-        self._local_step_counter += 1
+    def set_speed_factor(self, sf):
+        self._speed_factor = sf
 
+        max_speed_factor = 0
+        for k, v in self.system.entity_uuid_index.items():
+            if v.speed_factor() > max_speed_factor:
+                max_speed_factor = v.speed_factor()
+        for k, v in self.system.entity_uuid_index.items():
+            v.normalize_speed_factor(max_speed_factor)
+
+    def speed_factor(self):
+        """ Получить ненормализованное значение скорости обработки """
+        return self._speed_factor
+
+    def normalize_speed_factor(self, max_speed_factor):
+        """ Пересчитать нормализованное значение скорости обработки, исходя из максимального по всех системе """
+        self._normalized_speed_factor = self._speed_factor / max_speed_factor
+
+    def normalized_speed_factor(self):
+        """ Получить нормализованное значение скорости обработки """
+        return self._normalized_speed_factor
+
+    def step(self):
         for entity in self.active_entities.copy():
             entity.step()
+
+        self.activity_counter += self._normalized_speed_factor
+        if self.activity_counter < 1:
+            return
+
+        self.activity_counter = 0
+        self._local_step_counter += 1
+
 
 class OnOffTrigger(Entity):
     def __init__(self, system):

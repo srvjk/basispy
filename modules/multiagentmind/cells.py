@@ -85,81 +85,29 @@ class Neuron:
     def is_active(self) -> bool:
         return self.output > 0
 
-    # def do_activation(self, memory):
-    #     """
-    #     Активация нейрона.
-    #     :param memory: ссылка на память - контейнер, содержащий другие нейроны (для работы со связями)
-    #     :return:
-    #     """
-    #     # проходим по исходящим связям и сбрасываем флаг активности пресинаптического нейрона
-    #     for key, lnk in memory.links.items():
-    #         if key[0] == self.base.uuid:  # эта связь является исходящей для данного нейрона
-    #             lnk.active = False
-    #
-    #     # выполняем активацию
-    #     if self.input > self.threshold:
-    #         self.output = 1
-    #     else:
-    #         self.output = 0
-    #
-    #     #self.active = (random.randint(1, 100) > 70)
-    #
-    #     if not self.is_active():
-    #         return  # если нейрон не был активирован, дальше делать нечего
-    #
-    #     if not memory:
-    #         return
-    #
-    #     # проходим по исходящим связям и обновляем входные буферы постсинаптических нейронов
-    #     for key, lnk in memory.links.items():
-    #         if key[0] == self.base.uuid:  # эта связь является исходящей для данного нейрона
-    #             if lnk.polarity > 0:
-    #                 pass
-    #             else:
-    #
-    #
-    #     # устанавливаем новые связи с сущностями-нейронами:
-    #     for ent in memory.entities.copy():
-    #         neuron = ent.get_facet(Neuron)
-    #         if not neuron:
-    #             continue
-    #         key = (self.base.uuid, ent.uuid)
-    #         if key not in memory.links:
-    #             lnk = memory.new_link(*key)
-    #
-    #     # проходим по исходящим связям и взводим флаг активности пресинаптического нейрона
-    #     for key, lnk in memory.links.items():
-    #         if str(key[0]) == str(self.base.uuid):
-    #             lnk.active = True
-    #
-    # def update_links(self, memory):
-    #     """
-    #     Коррекция весов связей.
-    #     :param memory: ссылка на память - контейнер, содержащий другие нейроны (для работы со связями)
-    #     :return:
-    #     """
-    #     # если нейрон активен, проходим по всем его входящим связям и усиливаем те, у которых
-    #     # нейрон-источник был активен на прошлом шаге, остальные ослабляем и удаляем "нулевые"
-    #     if self.active:
-    #         for key, lnk in memory.links.copy().items():
-    #             if str(key[1]) == str(self.base.uuid):
-    #                 if lnk.active:
-    #                     lnk.strength += 1
-    #                 else:
-    #                     lnk.strength -= 1
-    #                 if lnk.strength < 1:
-    #                     memory.remove_link(lnk)
-
     def do_activation(self, memory):
         """
         Активация нейрона.
         :param memory: ссылка на память - контейнер, содержащий другие нейроны (для работы со связями)
         :return:
         """
+        if self.is_active():
+            self.input = 0
+
+        rand_range = 1000
+        rand_ridge = 10
         if self.input > self.threshold:
+            rand_ridge = 800
+
+        r = random.randint(0, rand_range)
+        if r < rand_ridge:
             self.output = 1
         else:
             self.output = 0
+
+    def set_input_active(self):
+        """ Принудительная активация нейрона по входу через установку входного значения выше порога """
+        self.input = self.threshold * 1.1
 
 
 class ObstacleAhead(basis.Entity):
@@ -185,7 +133,6 @@ class Action:
     Абстрактное действие.
     """
     def __init__(self):
-        self.is_done = False  # было ли действие уже выполнено
         self.object = None    # объект действия
 
 
@@ -252,6 +199,9 @@ class MoveForwardAction(basis.Entity):
     def step(self):
         super().step()
 
+        if not self.neuron.is_active():
+            return
+
         obj = self.action.object
         if not obj:
             return
@@ -261,8 +211,6 @@ class MoveForwardAction(basis.Entity):
                 *((obj.position + obj.orientation).to_tuple()),
             )
         )
-
-        self.action.is_done = True
 
 
 class TurnLeftAction(basis.Entity):
@@ -277,14 +225,15 @@ class TurnLeftAction(basis.Entity):
     def step(self):
         super().step()
 
+        if not self.neuron.is_active():
+            return
+
         obj = self.action.object
         if not obj:
             return
 
         vr = glm.rotate(glm.vec2(obj.orientation), glm.pi() / 2.0)
         obj.orientation = glm.ivec2(round(vr.x), round(vr.y))
-
-        self.action.is_done = True
 
 
 class TurnRightAction(basis.Entity):
@@ -299,14 +248,15 @@ class TurnRightAction(basis.Entity):
     def step(self):
         super().step()
 
+        if not self.neuron.is_active():
+            return
+
         obj = self.action.object
         if not obj:
             return
 
         vr = glm.rotate(glm.vec2(obj.orientation), -glm.pi() / 2.0)
         obj.orientation = glm.ivec2(round(vr.x), round(vr.y))
-
-        self.action.is_done = True
 
 
 class Memory(basis.Entity):
@@ -337,6 +287,10 @@ class Memory(basis.Entity):
         """
         del self.links[(link.src_id, link.dst_id)]
 
+    def step(self):
+        super().step()
+
+
 class Agent(basis.Entity):
     def __init__(self, system):
         super().__init__(system)
@@ -353,17 +307,40 @@ class Agent(basis.Entity):
 
     def create(self, source=None):
         super().create(source)
+
+        self.memory.make_active()
+
         self.memory.add_new(ObstacleAhead, "ObstacleAheadSensor")
         self.memory.add_new(ObstacleCollision, "ObstacleCollisionSensor")
-        act = self.memory.add_new(TurnLeftAction, "TurnLeftAction")
-        act.action.object = self
-        act.make_active()
-        act = self.memory.add_new(MoveForwardAction, "MoveForwardAction")
-        act.action.object = self
-        act.make_active()
-        act = self.memory.add_new(Fidget, "Fidget")
-        act.action.object = self
-        act.make_active()
+
+        lft = self.memory.add_new(TurnLeftAction, "TurnLeftAction")
+        lft.action.object = self
+        lft.make_active()
+
+        fwd = self.memory.add_new(MoveForwardAction, "MoveForwardAction")
+        fwd.action.object = self
+        fwd.make_active()
+
+        fgt = self.memory.add_new(Fidget, "Fidget")
+        fgt.action.object = self
+        fgt.make_active()
+
+        # устанавливаем межнейронные связи
+        lnk = self.memory.new_link(fgt.uuid, fwd.uuid)
+        lnk.strength = 1.0
+        lnk.polarity = 1.0
+
+        lnk = self.memory.new_link(fgt.uuid, lft.uuid)
+        lnk.strength = 1.0
+        lnk.polarity = 1.0
+
+        lnk = self.memory.new_link(fwd.uuid, lft.uuid)
+        lnk.strength = 1.0
+        lnk.polarity = -1.0
+
+        lnk = self.memory.new_link(lft.uuid, fwd.uuid)
+        lnk.strength = 1.0
+        lnk.polarity = -1.0
 
         #TODO придумать что-нибудь поумнее, чем случайное размещение
         for ent in self.memory.entities:
@@ -384,16 +361,16 @@ class Agent(basis.Entity):
         # проверка на наличие препятствия прямо по курсу
         ent = basis.first_of(self.memory.get_entities_by_type(ObstacleAhead))
         if ent:
-            ent.neuron.active = self.board.is_obstacle(x_ahead, y_ahead)
-            if ent.neuron.active:
+            if self.board.is_obstacle(x_ahead, y_ahead):
+                ent.neuron.set_input_active()
                 self.logger.debug("obstacle ahead at step {}: ({}, {})".format(self._local_step_counter,
                                                                                x_ahead, y_ahead))
 
         # проверка на "столкновение" с препятствием (агент и препятствие на одной клетке)
         ent = basis.first_of(self.memory.get_entities_by_type(ObstacleCollision))
         if ent:
-            ent.neuron.active = self.board.is_obstacle(self.position.x, self.position.y)
-            if ent.neuron.active:
+            if self.board.is_obstacle(self.position.x, self.position.y):
+                ent.neuron.set_input_active()
                 self.logger.debug("collision at step {}: ({}, {})".format(self._local_step_counter, self.position.x,
                                                                           self.position.y))
 
@@ -407,7 +384,7 @@ class Agent(basis.Entity):
 
         # обновляем входящие буферы нейронов (для следующей итерации)
         for (key, lnk) in self.memory.links.items():
-            src_ent = self.memory.get_entyty_by_id(lnk.src_id)
+            src_ent = self.memory.get_entity_by_id(lnk.src_id)
             src_neuron = src_ent.get_facet(Neuron)
             if not src_neuron:
                 continue

@@ -25,6 +25,8 @@ def main():
     agent.set_board(board)
     agent.make_active()
 
+    agent.memory.set_speed_factor(99)
+
     w_view = system.add_new(world_viewer.WorldViewer, "WorldViewer")
     if w_view:
         w_view.make_active()
