@@ -80,7 +80,6 @@ class NetControlWindow(basis.Entity):
         if imgui.button("1 : 1"):
             self.system.model_time_speed = 1.0
 
-
         show_net_button_text = "Hide Net" if self.show_net else "Show Net"
         if imgui.button(show_net_button_text):
             self.show_net = not self.show_net
@@ -300,6 +299,8 @@ class NetViewer(basis.Entity):
 
         line = gogl.Polygon(gogl.resource_manager.get_shader("polygon"))
 
+        circle = gogl.Circle(gogl.resourceManager.get_shader("polygon"), 32)
+
         # базовые цвета связей (окончательные будут зависеть от веса связи)
         excitatory_link_color_base = glm.vec3(1.0, 0.1, 0.1)  # базовый цвет для возбуждающей сввзи
         inhibitory_link_color_base = glm.vec3(0.1, 0.1, 1.0)  # базовый цвет для тормозящей связи
@@ -312,8 +313,9 @@ class NetViewer(basis.Entity):
             x = x0 + neuron.pos[0] * neuron_plus_margin
             y = y0 + neuron.pos[1] * neuron_plus_margin
             color = self.active_neuron_color if neuron.is_active() else self.inactive_neuron_color
-            polygon.draw(glm.vec2(x, y), glm.vec2(self.neuron_size, self.neuron_size),
-                         0.0, color, True)
+            circle.draw(glm.vec2(x, y), glm.vec2(self.neuron_size, self.neuron_size), 0.0, color, True)
+            #polygon.draw(glm.vec2(x, y), glm.vec2(self.neuron_size, self.neuron_size),
+            #             0.0, color, True)
 
             if self.net_control_window:
                 if neuron.uuid in self.net_control_window.selected_neurons:

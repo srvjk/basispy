@@ -22,12 +22,14 @@ class NetViewer(basis.Entity):
         self.win_maximized = 0
         self.read_config()
         self.may_be_paused = False
+
         self.window = self.init_glfw()
         glfw.set_window_size_callback(self.window, self.window_size_callback)
         glfw.set_window_pos_callback(self.window, self.window_pos_callback)
         glfw.set_window_maximize_callback(self.window, self.window_maximize_callback)
 
         glfw.make_context_current(self.window)
+        self.render_engine = GlfwRenderer(self.window)
 
         self.resource_manager = gogl.ResourceManager()
 
@@ -47,11 +49,25 @@ class NetViewer(basis.Entity):
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
+        self.color_neuron_inactive = glm.vec3(0.5, 0.5, 0.5)
+        self.color_neuron_active = glm.vec3(0.9, 0.9, 0.9)
+
         self.resource_manager.load_texture("background.png", False, "background")
         self.resource_manager.load_texture("neuron_inactive.png", True, "neuron_inactive")
         self.resource_manager.load_texture("neuron_active.png", True, "neuron_active")
 
         self.lnk_arc = gogl.Arc(self.resource_manager.get_shader("polygon"), 1.0, 10)  # дуга для рисования связи
+        self.neuron_circle = gogl.FilledCircle(self.resource_manager.get_shader("polygon"), 32)  # круг для нейрона
+        # индикатор состояния входа нейрона:
+        #self.neuron_input_indicator = gogl.Line(self.resource_manager.get_shader("polygon"))
+        self.neuron_input_indicator = gogl.Polygon(self.resource_manager.get_shader("polygon"))
+        self.neuron_input_indicator.set_points([
+            glm.vec2(0.0, 0.0),
+            glm.vec2(1.0, 0.0),
+            glm.vec2(1.0, 1.0),
+            glm.vec2(0.0, 1.0),
+            glm.vec2(0.0, 0.0)
+        ])
 
         self.agent = None
         self.agent_id = None
@@ -179,24 +195,6 @@ class NetViewer(basis.Entity):
             if b > bottom_right.y:
                 bottom_right.y = b
 
-        for ent in memory.entities:
-            neuron = ent.get_facet(cells.Neuron)
-            if not neuron:
-                continue
-
-            neuron_sprite = "neuron_inactive"
-            if neuron.is_active():
-                neuron_sprite = "neuron_active"
-
-            self.renderer.draw_sprite(self.resource_manager.get_texture(neuron_sprite),
-                                 glm.vec2(x0 + neuron.position.x, y0 + neuron.position.y),
-                                 glm.vec2(neuron.size.x, neuron.size.y), 0.0, glm.vec3(1.0))
-
-            #info_str = "{} - {}".format(str(ent.uuid.fields[0]), basis.qual_class_name(ent))
-            info_str = "{} - {}".format(str(ent.uuid.fields[0]), ent.full_name())
-            self.text_renderer.draw_text(info_str, x0 + neuron.position.x, y0 + neuron.position.y, 0.3,
-                                         glm.vec3(1.0, 1.0, 1.0))
-
         for key, lnk in memory.links.items():
             src_ent = memory.get_entity_by_id(lnk.src_id)
             if not src_ent:
@@ -213,8 +211,64 @@ class NetViewer(basis.Entity):
                 y0 + dst_ent.neuron.position.y + dst_ent.neuron.size.y * 0.5
             )
 
-            lnk_color = glm.vec3(1.0, 1.0, 1.0)
+            lnk_color = glm.vec3(0.8, 0.8, 0.8)
+            if lnk.polarity > 0:
+                lnk_color = glm.vec3(1.0, 0.5, 0.5)
+            elif lnk.polarity < 0:
+                lnk_color = glm.vec3(0.5, 0.5, 1.0)
             self.lnk_arc.draw_by_two_points(pt_src, pt_dst, lnk_color, False)
+
+        for ent in memory.entities:
+            neuron = ent.get_facet(cells.Neuron)
+            if not neuron:
+                continue
+
+            fill_color = self.color_neuron_inactive
+            if neuron.is_active():
+                fill_color = self.color_neuron_active
+
+            neuron_input_percent = 0
+            border_color = glm.vec3(0.1, 0.1, 0.1)
+            if neuron.input > 0:
+                if neuron.input < neuron.threshold:
+                    neuron_input_percent = neuron.input / neuron.threshold
+                    border_color = glm.vec3(
+                        0.5 * neuron_input_percent, neuron_input_percent, 0.5 * neuron_input_percent
+                    )
+                else:
+                    neuron_input_percent = 1.0
+                    border_color = glm.vec3(1.0, 0.1, 0.1)
+
+            # граница нейрона
+            # self.neuron_circle.draw(
+            #     glm.vec2(x0 + neuron.position.x + neuron.size.x * 0.5, y0 + neuron.position.y + neuron.size.y * 0.5),
+            #     glm.vec2(neuron.size.x + 4, neuron.size.y + 4), 0.0, border_color)
+            # внутренность нейрона
+            self.neuron_circle.draw(
+                glm.vec2(x0 + neuron.position.x + neuron.size.x * 0.5, y0 + neuron.position.y + neuron.size.y * 0.5),
+                glm.vec2(neuron.size.x, neuron.size.y), 0.0, fill_color)
+
+            indicator_size_x = neuron.size.x
+            indicator_size_y = indicator_size_x / 10.0
+            self.neuron_input_indicator.draw(
+                glm.vec2(x0 + neuron.position.x + neuron.size.x + 4, y0 + neuron.position.y + neuron.size.y + 4),
+                glm.vec2(indicator_size_x, indicator_size_y),
+                0.0,
+                glm.vec3(0.3, 0.3, 0.3),
+                True
+            )
+            self.neuron_input_indicator.draw(
+                glm.vec2(x0 + neuron.position.x + neuron.size.x + 4, y0 + neuron.position.y + neuron.size.y + 4),
+                glm.vec2(indicator_size_x * neuron_input_percent, indicator_size_y),
+                0.0,
+                glm.vec3(0.5, 1.0, 0.5),
+                True
+            )
+
+            #info_str = "{} - {}".format(str(ent.uuid.fields[0]), basis.qual_class_name(ent))
+            info_str = "{} - {}".format(str(ent.uuid.fields[0]), ent.full_name())
+            self.text_renderer.draw_text(info_str, x0 + neuron.position.x, y0 + neuron.position.y, 0.3,
+                                         glm.vec3(1.0, 1.0, 1.0))
 
     def draw(self):
         if not self.agent:
@@ -236,6 +290,8 @@ class NetViewer(basis.Entity):
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
+        self.render_engine.process_inputs()
+
         self.draw_memory(self.agent.memory, (self.win_width * 0.5, self.win_height * 0.5), 1.0)
 
         glfw.swap_buffers(self.window)
@@ -246,7 +302,7 @@ class NetViewer(basis.Entity):
     def init_glfw(self):
         # Initialize the GLFW library
         if not glfw.init():
-            return
+            return None
 
         # OpenGL 3 or above is required
         glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
@@ -269,7 +325,7 @@ class NetViewer(basis.Entity):
         # Exception handler if window wasn't created
         if not window:
             glfw.terminate()
-            return
+            return None
 
         # Makes window current on the calling thread
         glfw.make_context_current(window)

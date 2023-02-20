@@ -425,6 +425,76 @@ class Arc(Polygon):
         super().draw(p1, size, angle, color, filled)
 
 
+class FilledCircle(Polygon):
+    def __init__(self, shader, num_points):
+        super().__init__(shader)
+        points = list()
+
+        r = 0.5
+        d_angle = 2.0 * glm.pi() / num_points
+
+        angle = 0.0
+        points.append(glm.vec2(0, 0))
+        for i in range(num_points):
+            points.append(glm.vec2(r * glm.cos(angle), r * glm.sin(angle)))
+            angle += d_angle
+        points.append(points[1])  # замыкаем круг
+
+        self.set_points(points)
+
+    def draw(self, position, size, rotate, color):
+        """
+        Нарисовать ломаную относительно точки position.
+        :param position:
+        :param size:
+        :param rotate:
+        :param color:
+        :param filled:
+        :return:
+        """
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(position, 0.0))
+        model = glm.rotate(model, rotate, glm.vec3(0.0, 0.0, 1.0))
+        model = glm.scale(model, glm.vec3(size, 1.0))
+
+        self.shader.use()
+        self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("polygonColor", color)
+
+        gl.glBindVertexArray(self.vao)
+        gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, self.vertex_count)
+        gl.glBindVertexArray(0)
+
+    def draw_centered(self, position, size, rotate, color, filled):
+        """
+        Нарисовать ломаную относительно ее геометрического центра.
+        :param position:
+        :param size:
+        :param rotate:
+        :param color:
+        :param filled:
+        :return:
+        """
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(position, 0.0))
+        model = glm.translate(model, glm.vec3(0.5 * size[0], 0.5 * size[1], 0.0))
+        #model = glm.rotate(model, glm.radians(rotate), glm.vec3(0.0, 0.0, 1.0))
+        model = glm.rotate(model, rotate, glm.vec3(0.0, 0.0, 1.0))
+        model = glm.translate(model, glm.vec3(-0.5 * size[0], -0.5 * size[1], 0.0))
+        model = glm.scale(model, glm.vec3(size, 1.0))
+
+        self.shader.use()
+        self.shader.set_matrix4("model", model)
+        self.shader.set_vector3f("polygonColor", color)
+
+        gl.glBindVertexArray(self.vao)
+        if filled:
+            gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, self.vertex_count)
+        else:
+            gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.vertex_count)
+        gl.glBindVertexArray(0)
+
+
 class Character:
     def __init__(self):
         self.texture = None

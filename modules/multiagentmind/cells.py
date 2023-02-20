@@ -310,7 +310,7 @@ class Agent(basis.Entity):
 
         self.memory.make_active()
 
-        self.memory.add_new(ObstacleAhead, "ObstacleAheadSensor")
+        obst_ahead = self.memory.add_new(ObstacleAhead, "ObstacleAheadSensor")
         self.memory.add_new(ObstacleCollision, "ObstacleCollisionSensor")
 
         lft = self.memory.add_new(TurnLeftAction, "TurnLeftAction")
@@ -327,7 +327,7 @@ class Agent(basis.Entity):
 
         # устанавливаем межнейронные связи
         lnk = self.memory.new_link(fgt.uuid, fwd.uuid)
-        lnk.strength = 1.0
+        lnk.strength = 2.0  # делаем наиболее вероятным движение вперед
         lnk.polarity = 1.0
 
         lnk = self.memory.new_link(fgt.uuid, lft.uuid)
@@ -341,6 +341,14 @@ class Agent(basis.Entity):
         lnk = self.memory.new_link(lft.uuid, fwd.uuid)
         lnk.strength = 1.0
         lnk.polarity = -1.0
+
+        lnk = self.memory.new_link(obst_ahead.uuid, fwd.uuid)
+        lnk.strength = 2.0
+        lnk.polarity = -1.0
+
+        lnk = self.memory.new_link(obst_ahead.uuid, lft.uuid)
+        lnk.strength = 2.0
+        lnk.polarity = 1.0
 
         #TODO придумать что-нибудь поумнее, чем случайное размещение
         for ent in self.memory.entities:
@@ -373,6 +381,7 @@ class Agent(basis.Entity):
                 ent.neuron.set_input_active()
                 self.logger.debug("collision at step {}: ({}, {})".format(self._local_step_counter, self.position.x,
                                                                           self.position.y))
+                self.collision_count += 1
 
         self.memory.last_step_activity = 0
 

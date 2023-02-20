@@ -40,12 +40,13 @@ class WorldViewer(basis.Entity):
         self.read_config()
         self.may_be_paused = False
         self.window = self.init_glfw()
-        imgui.create_context()
+        self.imgui_context = imgui.create_context()
         self.render_engine = GlfwRenderer(self.window)
         glfw.set_window_size_callback(self.window, self.window_size_callback)
         glfw.set_window_pos_callback(self.window, self.window_pos_callback)
         glfw.set_window_maximize_callback(self.window, self.window_maximize_callback)
 
+        imgui.set_current_context(self.imgui_context)
         glfw.make_context_current(self.window)
 
         self.resource_manager = gogl.ResourceManager()
@@ -143,6 +144,9 @@ class WorldViewer(basis.Entity):
         window['x'] = self.win_x
         window['y'] = self.win_y
         window['maximized'] = self.win_maximized
+
+    def get_shared_window_context(self):
+        return self.window
 
     def on_window_resize(self):
         glfw.make_context_current(self.window)
@@ -439,6 +443,7 @@ class WorldViewer(basis.Entity):
                 # polygon.draw(glm.vec2(x0, y0), glm.vec2(width, height), 0.0, glm.vec3(0.5, 0.5, 0.5), False)
 
     def draw(self):
+        imgui.set_current_context(self.imgui_context)
         glfw.make_context_current(self.window)
 
         glfw.poll_events()
@@ -474,6 +479,7 @@ class WorldViewer(basis.Entity):
         self.text_renderer.draw_text(info_str, 20, 120, 0.5, glm.vec3(1.0, 0.0, 1.0))
 
         imgui.render()
+
         self.render_engine.render(imgui.get_draw_data())
         glfw.swap_buffers(self.window)
 
@@ -483,7 +489,7 @@ class WorldViewer(basis.Entity):
     def init_glfw(self):
         # Initialize the GLFW library
         if not glfw.init():
-            return
+            return None
 
         # OpenGL 3 or above is required
         glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
@@ -506,7 +512,7 @@ class WorldViewer(basis.Entity):
         # Exception handler if window wasn't created
         if not window:
             glfw.terminate()
-            return
+            return None
 
         # Makes window current on the calling thread
         glfw.make_context_current(window)
