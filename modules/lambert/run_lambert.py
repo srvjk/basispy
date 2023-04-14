@@ -1,8 +1,7 @@
 import basis
 import basis_ui
-import cells
-import world_viewer
-import net_viewer
+import lambert_core as core
+import lambert_world_viewer as world_viewer
 import config_helper
 
 
@@ -14,24 +13,17 @@ def main():
     conf_hlpr.load("config.toml")
 
     gui = system.add_new(basis_ui.GuiHelper, "GuiHelper")
-    if gui:
-        gui.make_active()
 
-    board = system.add_new(cells.Board, "Board")
-    board.create_obstacles(density=0.1)
+    board = system.add_new(core.Board, "Board")
+    board.step_min_time_period = 1.0
+    board.create_obstacles(density=0.5)
 
-    agent = board.add_new(cells.Agent, "Agent")
+    agent = board.add_new(core.Agent, "Agent")
+    agent.step_min_time_period = 1.0
     agent.create()
     agent.set_board(board)
-    agent.make_active()
 
     w_view = system.add_new(world_viewer.WorldViewer, "WorldViewer")
-    if w_view:
-        w_view.make_active()
-
-    n_view = system.add_new(net_viewer.NetViewer, "NetViewer")
-    if n_view:
-        n_view.make_active()
 
     # запускаем систему
     system.operate()

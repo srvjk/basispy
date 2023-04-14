@@ -154,37 +154,40 @@ class Fidget(basis.Entity):
         super().__init__(system)
         self.action = self.new_facet(Action)
         self.neuron = self.new_facet(Neuron)
-        self.no_activity_counter = 0  # счетчик шагов без какой-либо активности вокруг
-        self.activity_counter = 0  # счетчик шагов с активностью этого нейрона
-        self.activity_counter_threshold = 100
-        self.no_activity_counter_threshold = 20
+        self.no_activity_steps = 0  # счетчик шагов без какой-либо активности вокруг
+        self.activity_steps = 0  # счетчик шагов с активностью этого нейрона
+        self.activity_steps_threshold = 100
+        self.no_activity_steps_threshold = 20
 
     def step(self):
-        super().step()
+        if not super().step():
+            return False
 
         obj = self.action.object
         if not obj:
-            return
+            return False
 
         # Fidget активируется, если за последние несколько шагов активность сущностей-действий в памяти была
         # ниже некоторого порогового уровня
         memory = self.container
         if memory.last_step_activity > 1:  # 1, а не 0, чтобы учесть активность самого Fidget'a
-            self.no_activity_counter = 0
+            self.no_activity_steps = 0
         else:
-            self.no_activity_counter += 1
+            self.no_activity_steps += 1
 
         if self.neuron.is_active():
-            self.activity_counter += 1
+            self.activity_steps += 1
 
         # если Fidget уже достаточно долго активен, его надо погасить
-        if self.activity_counter > self.activity_counter_threshold:
+        if self.activity_steps > self.activity_steps_threshold:
             self.neuron.input = 0
-            self.activity_counter = 0
+            self.activity_steps = 0
 
-        if self.no_activity_counter > self.no_activity_counter_threshold:
+        if self.no_activity_steps > self.no_activity_steps_threshold:
             self.neuron.input = self.neuron.threshold + 1  # для безусловной активации
-            self.no_activity_counter = 0
+            self.no_activity_steps = 0
+
+        return True
 
 
 class MoveForwardAction(basis.Entity):
@@ -197,20 +200,23 @@ class MoveForwardAction(basis.Entity):
         self.neuron = self.new_facet(Neuron)
 
     def step(self):
-        super().step()
+        if not super().step():
+            return False
 
         if not self.neuron.is_active():
-            return
+            return False
 
         obj = self.action.object
         if not obj:
-            return
+            return False
 
         obj.position = glm.ivec2(
             obj.board.normalized_coordinates(
                 *((obj.position + obj.orientation).to_tuple()),
             )
         )
+
+        return True
 
 
 class TurnLeftAction(basis.Entity):
@@ -223,17 +229,20 @@ class TurnLeftAction(basis.Entity):
         self.neuron = self.new_facet(Neuron)
 
     def step(self):
-        super().step()
+        if not super().step():
+            return False
 
         if not self.neuron.is_active():
-            return
+            return False
 
         obj = self.action.object
         if not obj:
-            return
+            return False
 
         vr = glm.rotate(glm.vec2(obj.orientation), glm.pi() / 2.0)
         obj.orientation = glm.ivec2(round(vr.x), round(vr.y))
+
+        return True
 
 
 class TurnRightAction(basis.Entity):
@@ -246,17 +255,20 @@ class TurnRightAction(basis.Entity):
         self.neuron = self.new_facet(Neuron)
 
     def step(self):
-        super().step()
+        if not super().step():
+            return False
 
         if not self.neuron.is_active():
-            return
+            return False
 
         obj = self.action.object
         if not obj:
-            return
+            return False
 
         vr = glm.rotate(glm.vec2(obj.orientation), -glm.pi() / 2.0)
         obj.orientation = glm.ivec2(round(vr.x), round(vr.y))
+
+        return True
 
 
 class Memory(basis.Entity):
@@ -288,7 +300,10 @@ class Memory(basis.Entity):
         del self.links[(link.src_id, link.dst_id)]
 
     def step(self):
-        super().step()
+        if not super().step():
+            return False
+
+        return True
 
 
 class Agent(basis.Entity):
@@ -416,14 +431,17 @@ class Agent(basis.Entity):
                 self.memory.last_step_activity += 1
 
     def step(self):
-        super().step()
+        if not super().step():
+            return False
 
         self.message = None
 
         if not self.board:
-            return
+            return False
 
         self.do_step()
+
+        return True
 
 
 class BoardCell:

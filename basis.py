@@ -43,12 +43,10 @@ class Entity:
         self.base = None                 # ссылка на базовую сущность (для граней) TODO не объединить ли с container ?
         self.container = None            # ссылка на контейнер (для вложенных сущностей)
         self.entities = set()            # вложенные сущности
-        self.active_entities = set()     # перечень активных сущностей (т.е. таких, для которых вызывается step())
         self.entity_name_index = dict()  # индекс вложенных сущностей с доступом по имени
         self.may_be_paused = True        # можно ли ставить эту сущность на паузу
-        self.activity_counter = 0.0      # счетчик активности (если больше 1, сущность может быть активирована)
-        self._speed_factor = 1           # коэффициент скорости (от 1 до 99)
-        self._normalized_speed_factor = 1.0  # нормализованный коэффициент скорости (от 0 до 1)
+        self.step_min_time_period = 0.0  # минимальный период между шагами для этой сущности (для управления скоростью)
+        self.last_time_stamp = 0         # предыдущая отметка времени (для управления скоростью)
         self._local_step_counter = 0     # локальный счетчик шагов данной сущности
 
     def create(self, source=None):
@@ -61,7 +59,6 @@ class Entity:
 
     def clear(self):
         self.entity_name_index.clear()
-        self.active_entities.clear()
 
         for ent in self.entities.copy():
             ent.abolish()
@@ -119,8 +116,6 @@ class Entity:
         if not isinstance(entity, Entity):
             self.system.report_error("not an Entity")
             return
-        if entity in self.active_entities:
-            self.active_entities.remove(entity)
         if entity.name:
             if entity.name in self.entity_name_index:
                 del self.entity_name_index[entity.name]
@@ -229,23 +224,6 @@ class Entity:
         for ent in self.entities:
             print(ent)
 
-    def make_active(self):
-        """  Сделать активной данную сущность и активировать также все её контейнеры """
-        ent = self
-        cont = ent.container
-        while cont:
-            cont.active_entities.add(ent)
-            ent = cont
-            cont = ent.container
-
-    # def activate(self, entity):
-    #     if not isinstance(entity, Entity):
-    #         return False
-    #     if entity in self.active_entities:
-    #         return True  # ok, already activated
-    #     self.active_entities.add(entity)
-    #     return True
-
     def rename(self, new_name) -> bool:
         old_name = self.name
         self.name = new_name
@@ -300,38 +278,16 @@ class Entity:
 
         return False
 
-    def set_speed_factor(self, sf):
-        self._speed_factor = sf
-
-        max_speed_factor = 0
-        for k, v in self.system.entity_uuid_index.items():
-            if v.speed_factor() > max_speed_factor:
-                max_speed_factor = v.speed_factor()
-        for k, v in self.system.entity_uuid_index.items():
-            v.normalize_speed_factor(max_speed_factor)
-
-    def speed_factor(self):
-        """ Получить ненормализованное значение скорости обработки """
-        return self._speed_factor
-
-    def normalize_speed_factor(self, max_speed_factor):
-        """ Пересчитать нормализованное значение скорости обработки, исходя из максимального по всех системе """
-        self._normalized_speed_factor = self._speed_factor / max_speed_factor
-
-    def normalized_speed_factor(self):
-        """ Получить нормализованное значение скорости обработки """
-        return self._normalized_speed_factor
-
     def step(self):
-        for entity in self.active_entities.copy():
-            entity.step()
+        now = time.monotonic_ns()
+        time_delta = (now - self.last_time_stamp) / 1e9
+        if time_delta < self.step_min_time_period:
+            return False
 
-        self.activity_counter += self._normalized_speed_factor
-        if self.activity_counter < 1:
-            return
-
-        self.activity_counter = 0
+        self.last_time_stamp = now
         self._local_step_counter += 1
+
+        return True
 
 
 class OnOffTrigger(Entity):
@@ -372,6 +328,7 @@ class SystemStatistics:
     def __init__(self):
         self.counter_by_type = dict()  # для подсчета количества сущностей каждого типа
         self.total_obj_count = 0       # общее количество объектов в приложении (вывод функции dir())
+
 
 class System(Entity):
     def __init__(self):
@@ -490,7 +447,7 @@ class System(Entity):
         if self.do_single_step:
             self.do_single_step = False
 
-        for entity in self.active_entities.copy():
+        for entity in self.entities.copy():
             skip_entity = False
             if skip_this_step:
                 if entity.may_be_paused:
@@ -532,6 +489,8 @@ class System(Entity):
             counts = gc.get_count()
             self.statistics.total_obj_count = len(gc.garbage)
             self._last_stats_time_stamp = time_now
+
+        return True
 
     def operate(self):
         self._step_counter = 0
