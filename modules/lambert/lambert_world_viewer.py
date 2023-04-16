@@ -241,8 +241,6 @@ class WorldViewer(basis.Entity):
             if self.agent.memory:
                 self.display_memory(self.agent.memory)
 
-            if self.agent.message:
-                imgui.text(self.agent.message)
         else:
             imgui.text("No agents found!")
 

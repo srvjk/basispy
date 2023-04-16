@@ -278,16 +278,22 @@ class Entity:
 
         return False
 
-    def step(self):
+    def make_step(self):
         now = time.monotonic_ns()
         time_delta = (now - self.last_time_stamp) / 1e9
         if time_delta < self.step_min_time_period:
             return False
 
+        self.step()
+
         self.last_time_stamp = now
         self._local_step_counter += 1
 
         return True
+
+    def step(self):
+        for ent in self.entities:
+            ent.make_step()
 
 
 class OnOffTrigger(Entity):
@@ -505,7 +511,7 @@ class System(Entity):
         self.should_stop = False
 
         while not self.should_stop:
-            self.step()
+            self.make_step()
 
         print("System finished operation")
 

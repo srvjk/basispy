@@ -120,8 +120,7 @@ class ObstacleSensor(basis.Entity):
         is_obstacle = board.is_obstacle(x_ahead, y_ahead)
         if not is_obstacle:
             return
-        s = agent.memory.add_new(ObstacleAhead)
-        agent.memory.put_symbol(s)
+        agent.memory.put_symbol(ObstacleAhead)
 
 
 class CollisionSensor(basis.Entity):
@@ -143,8 +142,7 @@ class CollisionSensor(basis.Entity):
         is_obstacle = board.is_obstacle(x, y)
         if not is_obstacle:
             return
-        s = agent.memory.add_new(ObstacleCollision)
-        agent.memory.put_symbol(s)
+        agent.memory.put_symbol(ObstacleCollision)
 
 
 class Analyzer(basis.Entity):
@@ -208,12 +206,9 @@ class MoveForwardAction(basis.Entity):
         self.actor = self.new_facet(Actor)
 
     def step(self):
-        if not super().step():
-            return False
-
         obj = self.action.object
         if not obj:
-            return False
+            return
 
         obj.position = glm.ivec2(
             obj.board.normalized_coordinates(
@@ -222,8 +217,6 @@ class MoveForwardAction(basis.Entity):
         )
 
         self.system.logger.debug("Moving forward at step {}".format(self.system.get_global_step_counter()))
-
-        return True
 
 
 class TurnLeftAction(basis.Entity):
@@ -236,19 +229,14 @@ class TurnLeftAction(basis.Entity):
         self.actor = self.new_facet(Actor)
 
     def step(self):
-        if not super().step():
-            return False
-
         obj = self.action.object
         if not obj:
-            return False
+            return
 
         vr = glm.rotate(glm.vec2(obj.orientation), glm.pi() / 2.0)
         obj.orientation = glm.ivec2(round(vr.x), round(vr.y))
 
         self.system.logger.debug("Turning left")
-
-        return True
 
 
 class TurnRightAction(basis.Entity):
@@ -261,19 +249,14 @@ class TurnRightAction(basis.Entity):
         self.actor = self.new_facet(Actor)
 
     def step(self):
-        if not super().step():
-            return False
-
         obj = self.action.object
         if not obj:
-            return False
+            return
 
         vr = glm.rotate(glm.vec2(obj.orientation), -glm.pi() / 2.0)
         obj.orientation = glm.ivec2(round(vr.x), round(vr.y))
 
         self.system.logger.debug("Turning right")
-
-        return True
 
 
 class MemoryBuffer(basis.Entity):
@@ -282,13 +265,6 @@ class MemoryBuffer(basis.Entity):
     """
     def __init__(self, system):
         super().__init__(system)
-        self.symbols = list()  # символы, хранимые в буфере
-
-    def clear(self):
-        self.symbols.clear()
-
-    def count(self):
-        return len(self.symbols)
 
 
 class Memory(basis.Entity):
@@ -302,13 +278,13 @@ class Memory(basis.Entity):
         stream_handler = logging.StreamHandler(sys.stdout)
         self.logger.addHandler(stream_handler)
 
-    def put_symbol(self, symbol):
+    def put_symbol(self, type_name):
         """
         Поместить символ в рабочую память.
         :param symbol:
         :return:
         """
-        self.front_buffer.symbols.append(symbol)
+        return self.front_buffer.add_new(type_name)
 
     def get_symbols_by_type(self, type_name):
         """
@@ -316,12 +292,8 @@ class Memory(basis.Entity):
         :param type_name:
         :return:
         """
-        result = list()
-        for s in self.back_buffer.symbols:
-            if isinstance(s, type_name):
-                result.append(s)
 
-        return result
+        return self.back_buffer.get_entities_by_type(type_name)
 
     def swap_buffers(self):
         """
@@ -330,16 +302,16 @@ class Memory(basis.Entity):
         """
         self.logger.debug(">>> step {}".format(self.system.get_global_step_counter()))
         self.logger.debug("before buf swap; front: {} ({}), back: {} ({})".format(
-            self.front_buffer.name, self.front_buffer.count(),
-            self.back_buffer.name, self.back_buffer.count())
+            self.front_buffer.name, len(self.front_buffer.entities),
+            self.back_buffer.name, len(self.back_buffer.entities))
         )
 
         self.front_buffer, self.back_buffer = self.back_buffer, self.front_buffer
         self.front_buffer.clear()
 
         self.logger.debug("after buf swap; front: {} ({}), back: {} ({})".format(
-            self.front_buffer.name, self.front_buffer.count(),
-            self.back_buffer.name, self.back_buffer.count())
+            self.front_buffer.name, len(self.front_buffer.entities),
+            self.back_buffer.name, len(self.back_buffer.entities))
         )
 
     def step(self):
@@ -357,7 +329,6 @@ class Agent(basis.Entity):
         self.orientation = glm.ivec2(1, 0)
         self.memory = self.add_new(Memory, "Memory")
         self.collision_count = 0  # счетчик столкновений с препятствиями
-        self.message = None  # диагностическое сообщение (если есть)
         self.logger = logging.getLogger("lambert")
         self.logger.setLevel(logging.DEBUG)
         stream_handler = logging.StreamHandler(sys.stdout)
@@ -368,10 +339,14 @@ class Agent(basis.Entity):
     def create(self, source=None):
         super().create(source)
 
-        self.add_new(ObstacleSensor, "ObstacleSensor")
-        self.add_new(CollisionSensor, "CollisionSensor")
         analyzer = self.add_new(Analyzer, "Analyzer")
         analyzer.actor.rating = 100
+
+        obst_sensor = self.add_new(ObstacleSensor, "ObstacleSensor")
+        obst_sensor.actor.rating = 100
+
+        col_sensor = self.add_new(CollisionSensor, "CollisionSensor")
+        col_sensor.actor.rating = 100
 
         idl = self.add_new(StayIdleAction, "IdleAction")
         idl.actor.rating = 50
@@ -393,23 +368,16 @@ class Agent(basis.Entity):
             actor = ent.get_facet(Actor)
             if actor:
                 v = random.random() * self.max_actor_rating
-                if v > actor.rating:
+                if v <= actor.rating:
                     ent.step()
 
         self.memory.swap_buffers()
 
     def step(self):
-        if not super().step():
-            return False
-
-        self.message = None
-
         if not self.board:
-            return False
+            return
 
         self.do_step()
-
-        return True
 
 
 class BoardCell:

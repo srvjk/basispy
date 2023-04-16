@@ -314,7 +314,6 @@ class Agent(basis.Entity):
         self.orientation = glm.ivec2(1, 0)
         self.memory = self.add_new(Memory, "Memory")
         self.collision_count = 0  # счетчик столкновений с препятствиями
-        self.message = None  # диагностическое сообщение (если есть)
         self.logger = logging.getLogger("multiagentmind")
         self.logger.setLevel(logging.DEBUG)
         stream_handler = logging.StreamHandler(sys.stdout)
@@ -433,8 +432,6 @@ class Agent(basis.Entity):
     def step(self):
         if not super().step():
             return False
-
-        self.message = None
 
         if not self.board:
             return False
